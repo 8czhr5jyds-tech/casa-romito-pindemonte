@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#16b8b0"><link rel="manifest" href="manifest.webmanifest">
+<title>Casa Romito/Pindemonte</title>
+<style>
+:root{--teal:#16b8b0;--dark:#087f7b;--bg:#effcfb;--ink:#173b3a}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(135deg,#16b8b0,#087f7b);color:white;padding:26px 20px 22px;border-radius:0 0 24px 24px}
+h1{font-size:25px;margin:0 0 6px}header p{margin:0;opacity:.9}
+nav{display:flex;gap:8px;overflow:auto;padding:14px 12px;position:sticky;top:0;background:var(--bg);z-index:2}
+nav button{border:0;border-radius:20px;padding:10px 14px;background:#d6f3f1;color:var(--dark);font-weight:650;white-space:nowrap}
+nav button.active{background:var(--dark);color:white}
+main{padding:8px 16px 40px;max-width:700px;margin:auto}.panel{background:white;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 3px 14px #0b777711}
+h2{font-size:20px;margin:4px 0 12px}.muted{color:#66817f;font-size:14px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cce5e3;border-radius:12px;font:inherit;margin:6px 0 10px;background:white;color:var(--ink)}
+textarea{min-height:80px;resize:vertical}.primary{border:0;background:var(--teal);color:white;padding:12px 16px;border-radius:12px;font-weight:700;font-size:15px}
+.item{padding:12px 0;border-bottom:1px solid #e5f1f0;display:flex;gap:10px;align-items:flex-start}.item:last-child{border:0}.item .body{flex:1}.item small{display:block;color:#66817f;margin-top:4px}.urgent{color:#b42318;font-weight:700}.done{text-decoration:line-through;opacity:.5}
+.delete{border:0;background:#fcebea;color:#a22;border-radius:9px;padding:7px 9px}
+.hidden{display:none}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#e1f7f5;padding:14px;border-radius:14px}.stat b{font-size:24px;display:block;color:var(--dark)}
+</style></head>
+<body>
+<header><h1>Casa Romito/Pindemonte</h1><p>La nostra casa, organizzata insieme 💚</p></header>
+<nav id="nav"><button data-tab="home" class="active">Casa</button><button data-tab="tasks">Compiti</button><button data-tab="shopping">Spesa</button><button data-tab="events">Promemoria</button><button data-tab="notes">Bacheca</button></nav>
+<main>
+<section id="home"><div class="panel"><h2>Benvenuti a casa</h2><p class="muted">Organizziamo insieme impegni, spesa e promemoria.</p><div class="grid"><div class="stat"><b id="openCount">0</b>Compiti da fare</div><div class="stat"><b id="shopCount">0</b>Articoli in lista</div></div></div><div class="panel"><h2>Prossimi promemoria</h2><div id="upcoming"></div></div></section>
+<section id="tasks" class="hidden"><div class="panel"><h2>Aggiungi un compito</h2><form id="taskForm"><input id="taskTitle" placeholder="Cosa bisogna fare?" required><select id="taskWho"><option>Io</option><option>Mia moglie</option><option>Entrambi</option></select><select id="taskUrgent"><option value="no">Normale</option><option value="yes">🚨 Urgente</option></select><button class="primary">Aggiungi compito</button></form></div><div class="panel"><h2>Compiti</h2><div id="taskList"></div></div></section>
+<section id="shopping" class="hidden"><div class="panel"><h2>Lista della spesa</h2><form id="shopForm"><input id="shopTitle" placeholder="Aggiungi un prodotto..." required><button class="primary">Aggiungi alla lista</button></form><div id="shopList"></div></div></section>
+<section id="events" class="hidden"><div class="panel"><h2>Nuovo promemoria</h2><form id="eventForm"><input id="eventTitle" placeholder="Titolo" required><input id="eventDate" type="date" required><input id="eventTime" type="time"><textarea id="eventDetails" placeholder="Dettagli (facoltativi)"></textarea><button class="primary">Salva promemoria</button></form></div><div class="panel"><h2>Calendario promemoria</h2><div id="eventList"></div></div></section>
+<section id="notes" class="hidden"><div class="panel"><h2>Bacheca condivisa</h2><p class="muted">Messaggi e avvisi per la famiglia, non una chat.</p><form id="noteForm"><textarea id="noteText" placeholder="Scrivi un avviso o un messaggio..." required></textarea><button class="primary">Pubblica</button></form><div id="noteList"></div></div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id), load=k=>JSON.parse(localStorage.getItem(k)||"[]"), save=(k,v)=>{localStorage.setItem(k,JSON.stringify(v));render()};
+let tasks=load("tasks"),shops=load("shops"),events=load("events"),notes=load("notes");
+function notify(msg){if("Notification"in window&&Notification.permission==="granted")new Notification("Casa Romito/Pindemonte",{body:msg})}
+async function askNotify(){if("Notification"in window&&Notification.permission==="default")await Notification.requestPermission()}
+function add(k,a,msg){let v=load(k);v.push(a);save(k,v);notify(msg)}
+function del(k,i){let v=load(k);v.splice(i,1);save(k,v)}
+function render(){
+tasks=load("tasks");shops=load("shops");events=load("events");notes=load("notes");
+$("openCount").textContent=tasks.filter(x=>!x.done).length;$("shopCount").textContent=shops.filter(x=>!x.done).length;
+$("taskList").innerHTML=tasks.map((x,i)=>`<div class="item"><input type="checkbox" ${x.done?"checked":""} onchange="toggle('tasks',${i})"><div class="body ${x.done?"done":""}">${esc(x.title)} ${x.urgent?'<span class="urgent">🚨 URGENTE</span>':""}<small>Assegnato a: ${esc(x.who)}</small></div><button class="delete" onclick="del('tasks',${i})">×</button></div>`).join("")||'<p class="muted">Nessun compito inserito.</p>';
+$("shopList").innerHTML=shops.map((x,i)=>`<div class="item"><input type="checkbox" ${x.done?"checked":""} onchange="toggle('shops',${i})"><div class="body ${x.done?"done":""}">${esc(x.title)}</div><button class="delete" onclick="del('shops',${i})">×</button></div>`).join("")||'<p class="muted">La lista è vuota.</p>';
+const sorted=[...events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+$("eventList").innerHTML=sorted.map(x=>`<div class="item"><div class="body"><b>${esc(x.title)}</b><small>${x.date} ${x.time||""} ${esc(x.details||"")}</small></div><button class="delete" onclick="del('events',${events.indexOf(x)})">×</button></div>`).join("")||'<p class="muted">Nessun promemoria.</p>';
+$("upcoming").innerHTML=sorted.slice(0,3).map(x=>`<div class="item"><div class="body"><b>${esc(x.title)}</b><small>${x.date} ${x.time||""}</small></div></div>`).join("")||'<p class="muted">Nessun promemoria in programma.</p>';
+$("noteList").innerHTML=notes.slice().reverse().map((x,j)=>`<div class="item"><div class="body">${esc(x.text)}<small>${esc(x.date)}</small></div><button class="delete" onclick="del('notes',${notes.length-1-j})">×</button></div>`).join("")||'<p class="muted">Nessun messaggio.</p>';
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+window.toggle=(k,i)=>{let v=load(k);v[i].done=!v[i].done;save(k,v)};
+window.del=del;
+$("taskForm").onsubmit=e=>{e.preventDefault();askNotify();add("tasks",{title:$("taskTitle").value,who:$("taskWho").value,urgent:$("taskUrgent").value==="yes",done:false},"Nuovo compito: "+$("taskTitle").value);e.target.reset()};
+$("shopForm").onsubmit=e=>{e.preventDefault();askNotify();add("shops",{title:$("shopTitle").value,done:false},"Aggiunto alla lista della spesa: "+$("shopTitle").value);e.target.reset()};
+$("eventForm").onsubmit=e=>{e.preventDefault();askNotify();add("events",{title:$("eventTitle").value,date:$("eventDate").value,time:$("eventTime").value,details:$("eventDetails").value},"Nuovo promemoria: "+$("eventTitle").value);e.target.reset()};
+$("noteForm").onsubmit=e=>{e.preventDefault();askNotify();add("notes",{text:$("noteText").value,date:new Date().toLocaleString("it-IT")},"Nuovo messaggio sulla bacheca");e.target.reset()};
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll("main section").forEach(s=>s.classList.toggle("hidden",s.id!==b.dataset.tab))});
+if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js").catch(()=>{});
+render();
+</script></body></html>
