@@ -1,97 +1,88 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#16b8b0">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Casa Romito/Pindemonte</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    :root {
-      --turquoise: #16b8b0;
-      --dark: #087f7b;
-      --pale: #e8fbf9;
-      --bg: #f3f9f9;
-      --text: #203638;
-      --muted: #718486;
-      --danger: #d94343;
-      --border: #dcebea;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    header {
-      background: linear-gradient(135deg, #16b8b0, #087f7b);
-      color: white; padding: 25px 18px 20px;
-      border-radius: 0 0 24px 24px;
-    }
-    header h1 { margin: 0 0 5px; font-size: 24px; }
-    header p { margin: 0; opacity: .9; font-size: 14px; }
-    main { max-width: 720px; margin: auto; padding: 16px; }
-    .panel, .card {
-      background: white; border-radius: 16px; padding: 16px;
-      margin-bottom: 14px; box-shadow: 0 3px 14px #1232;
-    }
-    h2 { font-size: 19px; margin: 0 0 13px; }
-    h3 { font-size: 16px; margin: 0 0 10px; }
-    input, select, textarea, button {
-      font: inherit; border-radius: 11px; padding: 12px;
-    }
-    input, select, textarea {
-      width: 100%; border: 1px solid var(--border);
-      background: #fff; color: var(--text); margin-bottom: 9px;
-    }
-    textarea { min-height: 75px; resize: vertical; }
-    button {
-      border: 0; background: var(--turquoise); color: white;
-      font-weight: 650; cursor: pointer;
-    }
-    button.secondary { background: var(--pale); color: var(--dark); }
-    button.danger { background: #fff0f0; color: var(--danger); }
-    button.small { padding: 7px 10px; font-size: 13px; }
-    .full { width: 100%; }
-    .row { display: flex; gap: 8px; align-items: center; }
-    .row > * { min-width: 0; }
-    .row input { flex: 1; }
-    .tabs {
-      display: grid; grid-template-columns: repeat(3, 1fr);
-      gap: 7px; margin: 14px 0;
-    }
-    .tabs button { background: white; color: var(--dark); padding: 11px 5px; }
-    .tabs button.active { background: var(--turquoise); color: white; }
-    .section { display: none; }
-    .section.active { display: block; }
-    .item {
-      border: 1px solid var(--border); border-radius: 12px;
-      padding: 12px; margin: 8px 0; display: flex;
-      gap: 9px; align-items: center;
-    }
-    .item .details { flex: 1; min-width: 0; }
-    .item strong { display: block; overflow-wrap: anywhere; }
-    .meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
-    .done { opacity: .55; }
-    .done strong { text-decoration: line-through; }
-    .urgent {
-      border: 1px solid #f2aaaa; background: #fff4f3;
-    }
-    .tag {
-      display: inline-block; font-size: 11px; border-radius: 20px;
-      padding: 4px 8px; background: var(--pale); color: var(--dark);
-      margin-top: 5px;
-    }
-    .tag.urgent-tag { background: #ffe0df; color: #a52b2b; }
-    .muted { color: var(--muted); font-size: 13px; }
-    .hidden { display: none !important; }
-    #status { font-size: 13px; color: var(--muted); margin: 8px 0; }
-    #login { max-width: 440px; margin: 35px auto; }
-    footer { text-align: center; color: var(--muted); font-size: 12px; padding: 15px; }
-    @media (min-width: 600px) {
-      .tabs { grid-template-columns: repeat(5, 1fr); }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#16b8b0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Casa Romito/Pindemonte</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --turquoise:#16b8b0; --dark:#087f7b; --pale:#e8fbf9;
+  --bg:#f3f9f9; --text:#203638; --muted:#718486;
+  --danger:#d94343; --border:#dcebea;
+}
+* {box-sizing:border-box}
+body {
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+header {
+  background:linear-gradient(135deg,#16b8b0,#087f7b);
+  color:white;padding:25px 18px 20px;border-radius:0 0 24px 24px;
+}
+header h1 {margin:0 0 5px;font-size:24px}
+header p {margin:0;opacity:.9;font-size:14px}
+main {max-width:720px;margin:auto;padding:16px}
+.panel,.card {
+  background:white;border-radius:16px;padding:16px;
+  margin-bottom:14px;box-shadow:0 3px 14px #1232;
+}
+h2 {font-size:19px;margin:0 0 13px}
+h3 {font-size:16px;margin:0 0 10px}
+input,select,textarea,button {
+  font:inherit;border-radius:11px;padding:12px;
+}
+input,select,textarea {
+  width:100%;border:1px solid var(--border);
+  background:white;color:var(--text);margin-bottom:9px;
+}
+textarea {min-height:75px;resize:vertical}
+button {
+  border:0;background:var(--turquoise);color:white;
+  font-weight:650;cursor:pointer;
+}
+button.secondary {background:var(--pale);color:var(--dark)}
+button.danger {background:#fff0f0;color:var(--danger)}
+button.small {padding:7px 10px;font-size:13px}
+.full {width:100%}
+.row {display:flex;gap:8px;align-items:center}
+.row>* {min-width:0}
+.row input {flex:1}
+.tabs {
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:7px;margin:14px 0;
+}
+.tabs button {background:white;color:var(--dark);padding:11px 5px}
+.tabs button.active {background:var(--turquoise);color:white}
+.section {display:none}
+.section.active {display:block}
+.item {
+  border:1px solid var(--border);border-radius:12px;
+  padding:12px;margin:8px 0;display:flex;gap:9px;align-items:center;
+}
+.item .details {flex:1;min-width:0}
+.item strong {display:block;overflow-wrap:anywhere}
+.meta {color:var(--muted);font-size:12px;margin-top:4px}
+.done {opacity:.55}
+.done strong {text-decoration:line-through}
+.urgent {border:1px solid #f2aaaa;background:#fff4f3}
+.tag {
+  display:inline-block;font-size:11px;border-radius:20px;
+  padding:4px 8px;background:var(--pale);color:var(--dark);margin-top:5px;
+}
+.tag.urgent-tag {background:#ffe0df;color:#a52b2b}
+.muted {color:var(--muted);font-size:13px}
+.hidden {display:none!important}
+#status {font-size:13px;color:var(--muted);margin:8px 0}
+#login {max-width:440px;margin:35px auto}
+footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
+@media(min-width:600px) {
+  .tabs {grid-template-columns:repeat(6,1fr)}
+}
+</style>
 </head>
 <body>
 <header>
@@ -100,102 +91,121 @@
 </header>
 
 <main>
-  <section id="login" class="panel">
-    <h2>Accedi alla nostra casa</h2>
-    <p class="muted">Accedi con l'indirizzo email e la password del tuo account.</p>
-    <form id="loginForm">
-      <input id="email" type="email" placeholder="Indirizzo email" autocomplete="username" required>
-      <input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
-      <button class="full" type="submit">Accedi</button>
-    </form>
-    <p id="loginError" class="muted"></p>
-  </section>
+<section id="login" class="panel">
+  <h2>Accedi alla nostra casa</h2>
+  <p class="muted">Accedi con il tuo indirizzo email e la tua password.</p>
+  <form id="loginForm">
+    <input id="email" type="email" placeholder="Indirizzo email" required>
+    <input id="password" type="password" placeholder="Password" required>
+    <button class="full" type="submit">Accedi</button>
+  </form>
+  <p id="loginError" class="muted"></p>
+</section>
 
-  <section id="app" class="hidden">
-    <div class="panel">
-      <div class="row" style="justify-content:space-between">
-        <div>
-          <strong>Benvenuti a casa!</strong>
-          <div id="who" class="muted"></div>
-        </div>
-        <button id="logout" class="secondary small">Esci</button>
+<section id="app" class="hidden">
+  <div class="panel">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <strong>Benvenuti a casa!</strong>
+        <div id="who" class="muted"></div>
       </div>
-      <div id="status">Connessione in corso…</div>
-      <button id="enableNotifications" class="secondary small">Attiva notifiche su questo telefono</button>
+      <button id="logout" class="secondary small">Esci</button>
     </div>
+    <div id="status">Connessione in corso…</div>
+    <button id="enableNotifications" class="secondary small">
+      Attiva notifiche su questo telefono
+    </button>
+  </div>
 
-    <nav class="tabs">
-      <button class="active" data-tab="tasks">Compiti</button>
-      <button data-tab="shopping">Spesa</button>
-      <button data-tab="reminders">Promemoria</button>
-      <button data-tab="notes">Bacheca</button>
-      <button data-tab="home">Casa</button>
-    </nav>
+  <nav class="tabs">
+    <button class="active" data-tab="tasks">Compiti</button>
+    <button data-tab="shopping">Spesa</button>
+    <button data-tab="reminders">Promemoria</button>
+    <button data-tab="notes">Bacheca</button>
+    <button data-tab="home">Casa</button>
+    <button data-tab="settings">Impostazioni</button>
+  </nav>
 
-    <section id="tasks" class="section active">
-      <div class="panel">
-        <h2>🧹 Compiti di casa</h2>
-        <form id="taskForm">
-          <input id="taskTitle" placeholder="Cosa c'è da fare?" required>
-          <select id="taskAssigned">
-            <option>Entrambi</option>
-            <option>Io</option>
-            <option>Mia moglie</option>
-          </select>
-          <label class="muted"><input id="taskUrgent" type="checkbox" style="width:auto"> Segna come urgente</label>
-          <button class="full" type="submit">＋ Aggiungi compito</button>
-        </form>
-      </div>
-      <div class="card">
-        <h3>Da fare</h3><div id="tasksList"></div>
-      </div>
-    </section>
-
-    <section id="shopping" class="section">
-      <div class="panel">
-        <h2>🛒 Lista della spesa</h2>
-        <form id="shoppingForm" class="row">
-          <input id="shoppingTitle" placeholder="Aggiungi un prodotto…" required>
-          <button type="submit">＋</button>
-        </form>
-      </div>
-      <div class="card"><div id="shoppingList"></div></div>
-    </section>
-
-    <section id="reminders" class="section">
-      <div class="panel">
-        <h2>🔔 Promemoria</h2>
-        <form id="reminderForm">
-          <input id="reminderTitle" placeholder="Titolo del promemoria" required>
-          <input id="reminderDate" type="date" required>
-          <input id="reminderTime" type="time">
-          <textarea id="reminderDetails" placeholder="Dettagli (facoltativi)"></textarea>
-          <button class="full" type="submit">＋ Aggiungi promemoria</button>
-        </form>
-      </div>
-      <div class="card"><div id="remindersList"></div></div>
-    </section>
-
-    <section id="notes" class="section">
-      <div class="panel">
-        <h2>📌 Bacheca di casa</h2>
-        <form id="noteForm">
-          <textarea id="noteMessage" placeholder="Scrivi un avviso o un messaggio per la famiglia…" required></textarea>
-          <button class="full" type="submit">Pubblica in bacheca</button>
-        </form>
-      </div>
-      <div class="card"><div id="notesList"></div></div>
-    </section>
-
-    <section id="home" class="section">
-      <div class="panel">
-        <h2>🏡 La nostra casa</h2>
-        <p>Uno spazio condiviso per organizzare compiti, spesa, promemoria e comunicazioni familiari.</p>
-        <p class="muted">I dati vengono salvati nel database condiviso. Quando uno dei due aggiorna una sezione, l'altro telefono riceve gli aggiornamenti quando è connesso.</p>
-      </div>
-    </section>
+  <section id="tasks" class="section active">
+    <div class="panel">
+      <h2>🧹 Compiti di casa</h2>
+      <form id="taskForm">
+        <input id="taskTitle" placeholder="Cosa c'è da fare?" required>
+        <select id="taskAssigned"></select>
+        <label class="muted">
+          <input id="taskUrgent" type="checkbox" style="width:auto">
+          Segna come urgente
+        </label>
+        <button class="full" type="submit">＋ Aggiungi compito</button>
+      </form>
+    </div>
+    <div class="card">
+      <h3>Da fare</h3>
+      <div id="tasksList"></div>
+    </div>
   </section>
+
+  <section id="shopping" class="section">
+    <div class="panel">
+      <h2>🛒 Lista della spesa</h2>
+      <form id="shoppingForm" class="row">
+        <input id="shoppingTitle" placeholder="Aggiungi un prodotto…" required>
+        <button type="submit">＋</button>
+      </form>
+    </div>
+    <div class="card"><div id="shoppingList"></div></div>
+  </section>
+
+  <section id="reminders" class="section">
+    <div class="panel">
+      <h2>🔔 Promemoria</h2>
+      <form id="reminderForm">
+        <input id="reminderTitle" placeholder="Titolo del promemoria" required>
+        <input id="reminderDate" type="date" required>
+        <input id="reminderTime" type="time">
+        <textarea id="reminderDetails" placeholder="Dettagli (facoltativi)"></textarea>
+        <button class="full" type="submit">＋ Aggiungi promemoria</button>
+      </form>
+    </div>
+    <div class="card"><div id="remindersList"></div></div>
+  </section>
+
+  <section id="notes" class="section">
+    <div class="panel">
+      <h2>📌 Bacheca di casa</h2>
+      <form id="noteForm">
+        <textarea id="noteMessage" placeholder="Scrivi un avviso o un messaggio per la famiglia…" required></textarea>
+        <button class="full" type="submit">Pubblica in bacheca</button>
+      </form>
+    </div>
+    <div class="card"><div id="notesList"></div></div>
+  </section>
+
+  <section id="home" class="section">
+    <div class="panel">
+      <h2>🏡 La nostra casa</h2>
+      <p>Uno spazio condiviso per organizzare compiti, spesa, promemoria e comunicazioni familiari.</p>
+      <p class="muted">I dati vengono salvati nel database condiviso e aggiornati sui telefoni connessi.</p>
+    </div>
+  </section>
+
+  <section id="settings" class="section">
+    <div class="panel">
+      <h2>⚙️ Impostazioni di famiglia</h2>
+      <p class="muted">Personalizzate i nomi che compariranno nell'app e nelle assegnazioni dei compiti.</p>
+      <form id="settingsForm">
+        <label for="francescoName" class="muted">Nome del primo componente</label>
+        <input id="francescoName" maxlength="40" required>
+        <label for="lindaName" class="muted">Nome del secondo componente</label>
+        <input id="lindaName" maxlength="40" required>
+        <button class="full" type="submit">Salva i nomi</button>
+      </form>
+      <p id="settingsMessage" class="muted"></p>
+    </div>
+  </section>
+</section>
 </main>
+
 <footer>Casa Romito/Pindemonte · Spazio privato di famiglia</footer>
 
 <script>
@@ -205,22 +215,30 @@
   const HOUSEHOLD_ID = "be8f07ee-b389-4bd8-9a9e-6de9c672eb48";
 
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const $ = id => document.getElementById(id);
+
   let user = null;
   let channel = null;
   let refreshTimer = null;
   let previousUrgentCount = null;
+  let settings = {
+    francesco_name: "Francesco",
+    linda_name: "Linda",
+    francesco_user_id: null,
+    linda_user_id: null
+  };
 
-  const $ = id => document.getElementById(id);
   const safe = value => String(value ?? "").replace(/[&<>"']/g, c => ({
     "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
   })[c]);
 
-  function status(message) { $("status").textContent = message; }
+  function status(message) {
+    $("status").textContent = message;
+  }
 
   function showApp() {
     $("login").classList.add("hidden");
     $("app").classList.remove("hidden");
-    $("who").textContent = user.email || "";
   }
 
   function showLogin() {
@@ -228,19 +246,68 @@
     $("login").classList.remove("hidden");
   }
 
+  function assignedName(value) {
+    if (value === "Io" || value === "Francesco") return settings.francesco_name;
+    if (value === "Mia moglie" || value === "Linda") return settings.linda_name;
+    return value || "Entrambi";
+  }
+
+  function populateAssignedOptions() {
+    $("taskAssigned").innerHTML = `
+      <option value="Entrambi">Entrambi</option>
+      <option value="${safe(settings.francesco_name)}">${safe(settings.francesco_name)}</option>
+      <option value="${safe(settings.linda_name)}">${safe(settings.linda_name)}</option>
+    `;
+  }
+
+  async function loadSettings() {
+    const {data, error} = await db
+      .from("household_settings")
+      .select("*")
+      .eq("household_id", HOUSEHOLD_ID)
+      .maybeSingle();
+
+    if (error) {
+      status("Errore nel caricamento dei nomi: " + error.message);
+      return false;
+    }
+
+    if (!data) {
+      status("Impostazioni di famiglia non trovate.");
+      return false;
+    }
+
+    settings = data;
+    $("francescoName").value = settings.francesco_name;
+    $("lindaName").value = settings.linda_name;
+    populateAssignedOptions();
+
+    let displayName = "Componente della famiglia";
+    if (user.id === settings.francesco_user_id) displayName = settings.francesco_name;
+    if (user.id === settings.linda_user_id) displayName = settings.linda_name;
+    $("who").textContent = displayName + " · " + (user.email || "");
+
+    return true;
+  }
+
   async function loadData() {
     if (!user) return;
+
     const tables = ["tasks", "shopping", "reminders", "notes"];
     const results = await Promise.all(tables.map(table =>
-      db.from(table).select("*").eq("household_id", HOUSEHOLD_ID).order("created_at", {ascending:false})
+      db.from(table).select("*")
+        .eq("household_id", HOUSEHOLD_ID)
+        .order("created_at", {ascending:false})
     ));
-    const errors = results.filter(r => r.error);
+
+    const errors = results.filter(result => result.error);
     if (errors.length) {
       status("Errore nel caricamento: " + errors[0].error.message);
       return;
     }
 
-    const [tasks, shopping, reminders, notes] = results.map(r => r.data || []);
+    const [tasks, shopping, reminders, notes] = results.map(result => result.data || []);
+
     renderTasks(tasks);
     renderShopping(shopping);
     renderReminders(reminders);
@@ -251,40 +318,61 @@
       notify("Nuovo compito urgente", "È stato aggiunto un compito urgente alla lista di casa.");
     }
     previousUrgentCount = urgentCount;
+
     status("Dati aggiornati · " + new Date().toLocaleTimeString("it-IT"));
   }
 
   function renderTasks(items) {
     const list = $("tasksList");
-    if (!items.length) { list.innerHTML = '<p class="muted">Non ci sono ancora compiti.</p>'; return; }
+    if (!items.length) {
+      list.innerHTML = '<p class="muted">Non ci sono ancora compiti.</p>';
+      return;
+    }
+
     list.innerHTML = items.map(item => `
       <div class="item ${item.completed ? "done" : ""} ${item.urgent && !item.completed ? "urgent" : ""}">
-        <input type="checkbox" style="width:20px;margin:0" ${item.completed ? "checked" : ""}
-          aria-label="Completa compito" onchange="window.homeApp.toggle('tasks','${item.id}','completed',this.checked)">
+        <input type="checkbox" style="width:20px;margin:0"
+          ${item.completed ? "checked" : ""}
+          aria-label="Completa compito"
+          onchange="window.homeApp.toggle('tasks','${item.id}','completed',this.checked)">
         <div class="details">
           <strong>${safe(item.title)}</strong>
-          <span class="tag">${safe(item.assigned_to || "Entrambi")}</span>
+          <span class="tag">${safe(assignedName(item.assigned_to))}</span>
           ${item.urgent ? '<span class="tag urgent-tag">URGENTE</span>' : ""}
         </div>
-        <button class="danger small" onclick="window.homeApp.remove('tasks','${item.id}')">✕</button>
-      </div>`).join("");
+        <button class="danger small"
+          onclick="window.homeApp.remove('tasks','${item.id}')">✕</button>
+      </div>
+    `).join("");
   }
 
   function renderShopping(items) {
     const list = $("shoppingList");
-    if (!items.length) { list.innerHTML = '<p class="muted">La lista della spesa è vuota.</p>'; return; }
+    if (!items.length) {
+      list.innerHTML = '<p class="muted">La lista della spesa è vuota.</p>';
+      return;
+    }
+
     list.innerHTML = items.map(item => `
       <div class="item ${item.completed ? "done" : ""}">
-        <input type="checkbox" style="width:20px;margin:0" ${item.completed ? "checked" : ""}
-          aria-label="Prodotto acquistato" onchange="window.homeApp.toggle('shopping','${item.id}','completed',this.checked)">
+        <input type="checkbox" style="width:20px;margin:0"
+          ${item.completed ? "checked" : ""}
+          aria-label="Prodotto acquistato"
+          onchange="window.homeApp.toggle('shopping','${item.id}','completed',this.checked)">
         <div class="details"><strong>${safe(item.title)}</strong></div>
-        <button class="danger small" onclick="window.homeApp.remove('shopping','${item.id}')">✕</button>
-      </div>`).join("");
+        <button class="danger small"
+          onclick="window.homeApp.remove('shopping','${item.id}')">✕</button>
+      </div>
+    `).join("");
   }
 
   function renderReminders(items) {
     const list = $("remindersList");
-    if (!items.length) { list.innerHTML = '<p class="muted">Non ci sono promemoria.</p>'; return; }
+    if (!items.length) {
+      list.innerHTML = '<p class="muted">Non ci sono promemoria.</p>';
+      return;
+    }
+
     list.innerHTML = items.map(item => `
       <div class="item">
         <div class="details">
@@ -292,62 +380,90 @@
           <div class="meta">${safe(item.reminder_date)} ${item.reminder_time ? " · " + safe(item.reminder_time.slice(0,5)) : ""}</div>
           ${item.details ? `<div class="meta">${safe(item.details)}</div>` : ""}
         </div>
-        <button class="danger small" onclick="window.homeApp.remove('reminders','${item.id}')">✕</button>
-      </div>`).join("");
+        <button class="danger small"
+          onclick="window.homeApp.remove('reminders','${item.id}')">✕</button>
+      </div>
+    `).join("");
   }
 
   function renderNotes(items) {
     const list = $("notesList");
-    if (!items.length) { list.innerHTML = '<p class="muted">La bacheca è vuota.</p>'; return; }
+    if (!items.length) {
+      list.innerHTML = '<p class="muted">La bacheca è vuota.</p>';
+      return;
+    }
+
     list.innerHTML = items.map(item => `
       <div class="item">
         <div class="details">
           <strong>${safe(item.message)}</strong>
           <div class="meta">${item.created_at ? new Date(item.created_at).toLocaleString("it-IT") : ""}</div>
         </div>
-        <button class="danger small" onclick="window.homeApp.remove('notes','${item.id}')">✕</button>
-      </div>`).join("");
+        <button class="danger small"
+          onclick="window.homeApp.remove('notes','${item.id}')">✕</button>
+      </div>
+    `).join("");
   }
 
   async function add(table, values) {
-    const { error } = await db.from(table).insert({...values, household_id: HOUSEHOLD_ID});
-    if (error) { alert("Non sono riuscito a salvare: " + error.message); return false; }
+    const {error} = await db.from(table).insert({
+      ...values,
+      household_id: HOUSEHOLD_ID
+    });
+
+    if (error) {
+      alert("Non sono riuscito a salvare: " + error.message);
+      return false;
+    }
+
     await loadData();
     return true;
   }
 
   async function toggle(table, id, column, value) {
-    const { error } = await db.from(table).update({[column]:value}).eq("id", id).eq("household_id", HOUSEHOLD_ID);
+    const {error} = await db.from(table)
+      .update({[column]:value})
+      .eq("id",id)
+      .eq("household_id",HOUSEHOLD_ID);
+
     if (error) alert("Errore: " + error.message);
     else await loadData();
   }
 
   async function remove(table, id) {
     if (!confirm("Vuoi eliminare questo elemento?")) return;
-    const { error } = await db.from(table).delete().eq("id", id).eq("household_id", HOUSEHOLD_ID);
+
+    const {error} = await db.from(table)
+      .delete()
+      .eq("id",id)
+      .eq("household_id",HOUSEHOLD_ID);
+
     if (error) alert("Errore: " + error.message);
     else await loadData();
   }
 
   function notify(title, body) {
     if ("Notification" in window && Notification.permission === "granted") {
-      new Notification(title, {body});
+      new Notification(title,{body});
     }
   }
 
-  window.homeApp = {toggle, remove};
+  window.homeApp = {toggle,remove};
 
   $("loginForm").addEventListener("submit", async event => {
     event.preventDefault();
     $("loginError").textContent = "Accesso in corso…";
-    const {data, error} = await db.auth.signInWithPassword({
-      email: $("email").value.trim(),
-      password: $("password").value
+
+    const {data,error} = await db.auth.signInWithPassword({
+      email:$("email").value.trim(),
+      password:$("password").value
     });
+
     if (error) {
       $("loginError").textContent = "Accesso non riuscito: " + error.message;
       return;
     }
+
     user = data.user;
     await startApp();
   });
@@ -365,43 +481,89 @@
       alert("Questo browser non supporta le notifiche.");
       return;
     }
+
     const permission = await Notification.requestPermission();
-    alert(permission === "granted" ? "Notifiche abilitate su questo telefono." : "Permesso notifiche non concesso.");
+    alert(permission === "granted"
+      ? "Notifiche abilitate su questo telefono."
+      : "Permesso notifiche non concesso.");
   });
 
   $("taskForm").addEventListener("submit", async event => {
     event.preventDefault();
     const title = $("taskTitle").value.trim();
     if (!title) return;
+
     const ok = await add("tasks", {
-      title, assigned_to: $("taskAssigned").value,
-      urgent: $("taskUrgent").checked, completed: false
+      title,
+      assigned_to:$("taskAssigned").value,
+      urgent:$("taskUrgent").checked,
+      completed:false
     });
-    if (ok) { $("taskForm").reset(); $("taskAssigned").value = "Entrambi"; }
+
+    if (ok) {
+      $("taskForm").reset();
+      $("taskAssigned").value = "Entrambi";
+    }
   });
 
   $("shoppingForm").addEventListener("submit", async event => {
     event.preventDefault();
     const title = $("shoppingTitle").value.trim();
-    if (title && await add("shopping", {title, completed:false})) $("shoppingForm").reset();
+    if (title && await add("shopping",{title,completed:false})) {
+      $("shoppingForm").reset();
+    }
   });
 
   $("reminderForm").addEventListener("submit", async event => {
     event.preventDefault();
     const title = $("reminderTitle").value.trim();
     if (!title) return;
-    const ok = await add("reminders", {
-      title, reminder_date: $("reminderDate").value,
-      reminder_time: $("reminderTime").value || null,
-      details: $("reminderDetails").value.trim() || null
+
+    const ok = await add("reminders",{
+      title,
+      reminder_date:$("reminderDate").value,
+      reminder_time:$("reminderTime").value || null,
+      details:$("reminderDetails").value.trim() || null
     });
+
     if (ok) $("reminderForm").reset();
   });
 
   $("noteForm").addEventListener("submit", async event => {
     event.preventDefault();
     const message = $("noteMessage").value.trim();
-    if (message && await add("notes", {message})) $("noteForm").reset();
+    if (message && await add("notes",{message})) {
+      $("noteForm").reset();
+    }
+  });
+
+  $("settingsForm").addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const francesco = $("francescoName").value.trim();
+    const linda = $("lindaName").value.trim();
+
+    if (!francesco || !linda) {
+      $("settingsMessage").textContent = "Inserisci entrambi i nomi.";
+      return;
+    }
+
+    const {error} = await db.from("household_settings")
+      .update({
+        francesco_name:francesco,
+        linda_name:linda,
+        updated_at:new Date().toISOString()
+      })
+      .eq("household_id",HOUSEHOLD_ID);
+
+    if (error) {
+      $("settingsMessage").textContent = "Errore nel salvataggio: " + error.message;
+      return;
+    }
+
+    $("settingsMessage").textContent = "Nomi salvati correttamente!";
+    await loadSettings();
+    await loadData();
   });
 
   document.querySelectorAll(".tabs button").forEach(button => {
@@ -415,37 +577,53 @@
 
   async function startApp() {
     showApp();
-    const {data: member, error: memberError} = await db
-      .from("household_members").select("household_id")
-      .eq("user_id", user.id).maybeSingle();
+
+    const {data:member,error:memberError} = await db
+      .from("household_members")
+      .select("household_id")
+      .eq("user_id",user.id)
+      .maybeSingle();
 
     if (memberError || !member || member.household_id !== HOUSEHOLD_ID) {
-      status("Questo account non risulta associato alla famiglia. Controlla gli utenti configurati in Supabase.");
+      status("Questo account non risulta associato alla famiglia.");
       return;
     }
+
+    const settingsOk = await loadSettings();
+    if (!settingsOk) return;
 
     await loadData();
 
     if (channel) await db.removeChannel(channel);
+
     channel = db.channel("casa-romito-pindemonte")
-      .on("postgres_changes", {event:"*", schema:"public"}, payload => {
-        if (["tasks","shopping","reminders","notes"].includes(payload.table)) loadData();
+      .on("postgres_changes",{event:"*",schema:"public"},payload => {
+        if (["tasks","shopping","reminders","notes","household_settings"].includes(payload.table)) {
+          loadSettings().then(loadData);
+        }
       })
       .subscribe();
 
     if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(loadData, 15000);
+    refreshTimer = setInterval(async () => {
+      await loadSettings();
+      await loadData();
+    },15000);
   }
 
-  db.auth.getSession().then(async ({data, error}) => {
-    if (error) { status("Errore di accesso: " + error.message); return; }
+  db.auth.getSession().then(async ({data,error}) => {
+    if (error) {
+      status("Errore di accesso: " + error.message);
+      return;
+    }
+
     if (data.session) {
       user = data.session.user;
       await startApp();
     }
   });
 
-  db.auth.onAuthStateChange(async (event, session) => {
+  db.auth.onAuthStateChange(event => {
     if (event === "SIGNED_OUT") {
       user = null;
       showLogin();
