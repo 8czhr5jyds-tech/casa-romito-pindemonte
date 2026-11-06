@@ -221,6 +221,7 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
   let channel = null;
   let refreshTimer = null;
   let previousUrgentCount = null;
+
   let settings = {
     francesco_name: "Francesco",
     linda_name: "Linda",
@@ -246,18 +247,44 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     $("login").classList.remove("hidden");
   }
 
+  // Traduce anche le vecchie assegnazioni salvate.
   function assignedName(value) {
-    if (value === "Io" || value === "Francesco") return settings.francesco_name;
-    if (value === "Mia moglie" || value === "Linda") return settings.linda_name;
-    return value || "Entrambi";
+    if (value === "Io" || value === "Francesco") {
+      return settings.francesco_name || "Francesco";
+    }
+
+    if (value === "Mia moglie" || value === "Linda") {
+      return settings.linda_name || "Linda";
+    }
+
+    if (value === "Entrambi" || !value) {
+      return "Entrambi";
+    }
+
+    if (value === settings.francesco_name) {
+      return settings.francesco_name;
+    }
+
+    if (value === settings.linda_name) {
+      return settings.linda_name;
+    }
+
+    return value;
   }
 
+  // I valori salvati sono stabili: Francesco, Linda, Entrambi.
+  // Le etichette visibili seguono i nomi modificabili nelle impostazioni.
   function populateAssignedOptions() {
+    const francesco = settings.francesco_name || "Francesco";
+    const linda = settings.linda_name || "Linda";
+
     $("taskAssigned").innerHTML = `
       <option value="Entrambi">Entrambi</option>
-      <option value="${safe(settings.francesco_name)}">${safe(settings.francesco_name)}</option>
-      <option value="${safe(settings.linda_name)}">${safe(settings.linda_name)}</option>
+      <option value="Francesco">${safe(francesco)}</option>
+      <option value="Linda">${safe(linda)}</option>
     `;
+
+    $("taskAssigned").value = "Entrambi";
   }
 
   async function loadSettings() {
@@ -277,14 +304,27 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       return false;
     }
 
-    settings = data;
+    settings = {
+      ...settings,
+      ...data,
+      francesco_name: data.francesco_name || "Francesco",
+      linda_name: data.linda_name || "Linda"
+    };
+
     $("francescoName").value = settings.francesco_name;
     $("lindaName").value = settings.linda_name;
     populateAssignedOptions();
 
     let displayName = "Componente della famiglia";
-    if (user.id === settings.francesco_user_id) displayName = settings.francesco_name;
-    if (user.id === settings.linda_user_id) displayName = settings.linda_name;
+
+    if (user.id === settings.francesco_user_id) {
+      displayName = settings.francesco_name;
+    }
+
+    if (user.id === settings.linda_user_id) {
+      displayName = settings.linda_name;
+    }
+
     $("who").textContent = displayName + " · " + (user.email || "");
 
     return true;
@@ -294,6 +334,7 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     if (!user) return;
 
     const tables = ["tasks", "shopping", "reminders", "notes"];
+
     const results = await Promise.all(tables.map(table =>
       db.from(table).select("*")
         .eq("household_id", HOUSEHOLD_ID)
@@ -301,12 +342,14 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     ));
 
     const errors = results.filter(result => result.error);
+
     if (errors.length) {
       status("Errore nel caricamento: " + errors[0].error.message);
       return;
     }
 
-    const [tasks, shopping, reminders, notes] = results.map(result => result.data || []);
+    const [tasks, shopping, reminders, notes] =
+      results.map(result => result.data || []);
 
     renderTasks(tasks);
     renderShopping(shopping);
@@ -314,9 +357,12 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     renderNotes(notes);
 
     const urgentCount = tasks.filter(t => t.urgent && !t.completed).length;
+
     if (previousUrgentCount !== null && urgentCount > previousUrgentCount) {
-      notify("Nuovo compito urgente", "È stato aggiunto un compito urgente alla lista di casa.");
+      notify("Nuovo compito urgente",
+        "È stato aggiunto un compito urgente alla lista di casa.");
     }
+
     previousUrgentCount = urgentCount;
 
     status("Dati aggiornati · " + new Date().toLocaleTimeString("it-IT"));
@@ -324,6 +370,7 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   function renderTasks(items) {
     const list = $("tasksList");
+
     if (!items.length) {
       list.innerHTML = '<p class="muted">Non ci sono ancora compiti.</p>';
       return;
@@ -348,6 +395,7 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   function renderShopping(items) {
     const list = $("shoppingList");
+
     if (!items.length) {
       list.innerHTML = '<p class="muted">La lista della spesa è vuota.</p>';
       return;
@@ -368,6 +416,7 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   function renderReminders(items) {
     const list = $("remindersList");
+
     if (!items.length) {
       list.innerHTML = '<p class="muted">Non ci sono promemoria.</p>';
       return;
@@ -388,6 +437,7 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   function renderNotes(items) {
     const list = $("notesList");
+
     if (!items.length) {
       list.innerHTML = '<p class="muted">La bacheca è vuota.</p>';
       return;
@@ -471,8 +521,10 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
   $("logout").addEventListener("click", async () => {
     await db.auth.signOut();
     user = null;
+
     if (channel) await db.removeChannel(channel);
     if (refreshTimer) clearInterval(refreshTimer);
+
     showLogin();
   });
 
@@ -483,6 +535,7 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     }
 
     const permission = await Notification.requestPermission();
+
     alert(permission === "granted"
       ? "Notifiche abilitate su questo telefono."
       : "Permesso notifiche non concesso.");
@@ -490,6 +543,7 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   $("taskForm").addEventListener("submit", async event => {
     event.preventDefault();
+
     const title = $("taskTitle").value.trim();
     if (!title) return;
 
@@ -508,7 +562,9 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   $("shoppingForm").addEventListener("submit", async event => {
     event.preventDefault();
+
     const title = $("shoppingTitle").value.trim();
+
     if (title && await add("shopping",{title,completed:false})) {
       $("shoppingForm").reset();
     }
@@ -516,6 +572,7 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   $("reminderForm").addEventListener("submit", async event => {
     event.preventDefault();
+
     const title = $("reminderTitle").value.trim();
     if (!title) return;
 
@@ -531,7 +588,9 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   $("noteForm").addEventListener("submit", async event => {
     event.preventDefault();
+
     const message = $("noteMessage").value.trim();
+
     if (message && await add("notes",{message})) {
       $("noteForm").reset();
     }
@@ -557,19 +616,25 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       .eq("household_id",HOUSEHOLD_ID);
 
     if (error) {
-      $("settingsMessage").textContent = "Errore nel salvataggio: " + error.message;
+      $("settingsMessage").textContent =
+        "Errore nel salvataggio: " + error.message;
       return;
     }
 
     $("settingsMessage").textContent = "Nomi salvati correttamente!";
+
     await loadSettings();
     await loadData();
   });
 
   document.querySelectorAll(".tabs button").forEach(button => {
     button.addEventListener("click", () => {
-      document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
-      document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+      document.querySelectorAll(".tabs button")
+        .forEach(b => b.classList.remove("active"));
+
+      document.querySelectorAll(".section")
+        .forEach(s => s.classList.remove("active"));
+
       button.classList.add("active");
       $(button.dataset.tab).classList.add("active");
     });
@@ -597,14 +662,19 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     if (channel) await db.removeChannel(channel);
 
     channel = db.channel("casa-romito-pindemonte")
-      .on("postgres_changes",{event:"*",schema:"public"},payload => {
-        if (["tasks","shopping","reminders","notes","household_settings"].includes(payload.table)) {
-          loadSettings().then(loadData);
-        }
-      })
+      .on("postgres_changes",
+        {event:"*",schema:"public"},
+        payload => {
+          if ([
+            "tasks","shopping","reminders","notes","household_settings"
+          ].includes(payload.table)) {
+            loadSettings().then(loadData);
+          }
+        })
       .subscribe();
 
     if (refreshTimer) clearInterval(refreshTimer);
+
     refreshTimer = setInterval(async () => {
       await loadSettings();
       await loadData();
