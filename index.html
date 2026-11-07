@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -146,6 +145,14 @@ button:disabled {opacity:.5;cursor:not-allowed}
   background:#ffe0df;
   color:#a52b2b;
 }
+.tag.paid-tag {
+  background:#e7f7ec;
+  color:#24743b;
+}
+.tag.unpaid-tag {
+  background:#fff3df;
+  color:#93600a;
+}
 .muted {color:var(--muted);font-size:13px}
 .hidden {display:none!important}
 #status {
@@ -220,6 +227,7 @@ footer {
   display:block;
   color:var(--dark);
   font-size:25px;
+  overflow-wrap:anywhere;
 }
 .stat span {font-size:12px;color:var(--muted)}
 .form-label {
@@ -245,20 +253,13 @@ footer {
 <main>
 
 <!-- ACCESSO -->
-
 <section id="login" class="panel">
   <h2>Accedi alla nostra casa</h2>
-  <p class="muted">
-    Accedi con il tuo indirizzo email e la tua password.
-  </p>
+  <p class="muted">Accedi con il tuo indirizzo email e la tua password.</p>
 
   <form id="loginForm">
-    <input id="email" type="email"
-      placeholder="Indirizzo email" required>
-
-    <input id="password" type="password"
-      placeholder="Password" required>
-
+    <input id="email" type="email" placeholder="Indirizzo email" required>
+    <input id="password" type="password" placeholder="Password" required>
     <button class="full" type="submit">Accedi</button>
   </form>
 
@@ -268,7 +269,6 @@ footer {
 <section id="app" class="hidden">
 
   <!-- ACCOUNT -->
-
   <div class="panel">
     <div class="row" style="justify-content:space-between">
       <div>
@@ -281,24 +281,20 @@ footer {
   </div>
 
   <!-- MENU -->
-
   <nav class="tabs">
     <button class="active" data-tab="home">🏡 Home</button>
     <button data-tab="shifts">🗓️ Turni</button>
     <button data-tab="tasks">🧹 Compiti</button>
     <button data-tab="shopping">🛒 Spesa</button>
-    <button data-tab="reminders">🔔 Promemoria</button>
+    <button data-tab="expenses">💶 Da pagare</button>
     <button data-tab="settings">⚙️ Impostazioni</button>
   </nav>
 
   <!-- HOME -->
-
   <section id="home" class="section active">
     <div class="panel">
       <h2>🏡 La nostra casa</h2>
-      <p class="muted">
-        Tutta l'organizzazione familiare in un unico posto.
-      </p>
+      <p class="muted">Tutta l'organizzazione familiare in un unico posto.</p>
 
       <div class="stat-grid">
         <div class="stat">
@@ -310,8 +306,8 @@ footer {
           <span>Prodotti da acquistare</span>
         </div>
         <div class="stat">
-          <strong id="homeReminders">0</strong>
-          <span>Promemoria</span>
+          <strong id="homeExpenses">0,00 €</strong>
+          <span>Spese ancora da pagare</span>
         </div>
         <div class="stat">
           <strong id="homeShifts">0</strong>
@@ -319,40 +315,20 @@ footer {
         </div>
       </div>
     </div>
-
-    <div class="panel">
-      <h3>Organizzazione settimanale</h3>
-      <p class="muted">
-        Consulta i turni lavorativi di Francesco e Linda
-        nella sezione dedicata.
-      </p>
-      <button class="full" data-go="shifts">
-        Visualizza i turni
-      </button>
-    </div>
   </section>
 
   <!-- TURNI SETTIMANALI -->
-
   <section id="shifts" class="section">
-
     <div class="panel">
       <h2>🗓️ Turni lavorativi settimanali</h2>
       <p class="muted">
-        I turni di Francesco e Linda, separati e organizzati
-        settimana per settimana.
+        I turni di Francesco e Linda, separati e organizzati settimana per settimana.
       </p>
 
       <div class="week-navigation">
-        <button id="previousWeek" class="secondary small">
-          ← Precedente
-        </button>
-
+        <button id="previousWeek" class="secondary small">← Precedente</button>
         <strong id="weekLabel"></strong>
-
-        <button id="nextWeek" class="secondary small">
-          Successiva →
-        </button>
+        <button id="nextWeek" class="secondary small">Successiva →</button>
       </div>
 
       <button id="currentWeek" class="secondary small full">
@@ -364,67 +340,43 @@ footer {
       <h3>＋ Aggiungi turno lavorativo</h3>
 
       <form id="shiftForm">
-
-        <label class="form-label" for="shiftPerson">
-          Persona
-        </label>
+        <label class="form-label" for="shiftPerson">Persona</label>
         <select id="shiftPerson" required></select>
 
-        <label class="form-label" for="shiftDate">
-          Giorno
-        </label>
+        <label class="form-label" for="shiftDate">Giorno</label>
         <input id="shiftDate" type="date" required>
 
         <div class="row">
           <div style="flex:1">
-            <label class="form-label" for="shiftStart">
-              Inizio
-            </label>
+            <label class="form-label" for="shiftStart">Inizio</label>
             <input id="shiftStart" type="time" required>
           </div>
-
           <div style="flex:1">
-            <label class="form-label" for="shiftEnd">
-              Fine
-            </label>
+            <label class="form-label" for="shiftEnd">Fine</label>
             <input id="shiftEnd" type="time" required>
           </div>
         </div>
 
-        <textarea id="shiftNotes"
-          placeholder="Note facoltative"></textarea>
-
-        <button class="full" type="submit">
-          ＋ Salva turno
-        </button>
+        <textarea id="shiftNotes" placeholder="Note facoltative"></textarea>
+        <button class="full" type="submit">＋ Salva turno</button>
       </form>
     </div>
 
     <div class="card">
-      <div class="person-title" id="francescoShiftTitle">
-        Francesco
-      </div>
+      <div class="person-title" id="francescoShiftTitle">Francesco</div>
       <div id="francescoShifts"></div>
-
-      <div class="person-title" id="lindaShiftTitle">
-        Linda
-      </div>
+      <div class="person-title" id="lindaShiftTitle">Linda</div>
       <div id="lindaShifts"></div>
     </div>
-
   </section>
 
   <!-- COMPITI -->
-
   <section id="tasks" class="section">
-
     <div class="panel">
       <h2>🧹 Compiti di casa</h2>
 
       <form id="taskForm">
-        <input id="taskTitle"
-          placeholder="Cosa c'è da fare?" required>
-
+        <input id="taskTitle" placeholder="Cosa c'è da fare?" required>
         <select id="taskAssigned"></select>
 
         <label class="muted">
@@ -438,9 +390,7 @@ footer {
         <input id="taskFiles" type="file" multiple
           accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
 
-        <button class="full" type="submit">
-          ＋ Aggiungi compito
-        </button>
+        <button class="full" type="submit">＋ Aggiungi compito</button>
       </form>
     </div>
 
@@ -448,19 +398,15 @@ footer {
       <h3>Da fare</h3>
       <div id="tasksList"></div>
     </div>
-
   </section>
 
   <!-- SPESA -->
-
   <section id="shopping" class="section">
-
     <div class="panel">
       <h2>🛒 Lista della spesa</h2>
 
       <form id="shoppingForm" class="row">
-        <input id="shoppingTitle"
-          placeholder="Aggiungi un prodotto…" required>
+        <input id="shoppingTitle" placeholder="Aggiungi un prodotto…" required>
         <button type="submit">＋</button>
       </form>
     </div>
@@ -468,56 +414,67 @@ footer {
     <div class="card">
       <div id="shoppingList"></div>
     </div>
-
   </section>
 
-  <!-- PROMEMORIA -->
+  <!-- DA PAGARE -->
+  <section id="expenses" class="section">
+    <div class="panel">
+      <h2>💶 Spese di casa</h2>
+      <p class="muted">
+        Registra le spese, allega ricevute o documenti e tieni sotto controllo ciò che è stato pagato.
+      </p>
 
-  <section id="reminders" class="section">
+      <div class="stat-grid">
+        <div class="stat">
+          <strong id="totalUnpaid">0,00 €</strong>
+          <span>Ancora da pagare</span>
+        </div>
+        <div class="stat">
+          <strong id="totalPaid">0,00 €</strong>
+          <span>Già pagato</span>
+        </div>
+      </div>
+    </div>
 
     <div class="panel">
-      <h2>🔔 Promemoria</h2>
+      <h3>＋ Aggiungi una spesa</h3>
 
-      <form id="reminderForm">
+      <form id="expenseForm">
+        <label class="form-label" for="expenseTitle">Descrizione</label>
+        <input id="expenseTitle" type="text"
+          placeholder="Es. Bolletta luce, condominio…" required>
 
-        <input id="reminderTitle"
-          placeholder="Titolo del promemoria" required>
+        <label class="form-label" for="expenseAmount">Importo (€)</label>
+        <input id="expenseAmount" type="number"
+          min="0.01" step="0.01" inputmode="decimal"
+          placeholder="0,00" required>
 
-        <label class="form-label" for="reminderDate">
-          Data
+        <label class="form-label" for="expenseDate">Scadenza (facoltativa)</label>
+        <input id="expenseDate" type="date">
+
+        <label class="form-label" for="expenseFiles">
+          Allega foto, PDF o documenti (facoltativo)
         </label>
-        <input id="reminderDate" type="date" required>
-
-        <label class="form-label" for="reminderTime">
-          Orario
-        </label>
-        <input id="reminderTime" type="time">
-
-        <textarea id="reminderDetails"
-          placeholder="Dettagli (facoltativi)"></textarea>
-
-        <label class="form-label" for="reminderFiles">
-          Allega fotografie, PDF o documenti
-        </label>
-        <input id="reminderFiles" type="file" multiple
+        <input id="expenseFiles" type="file" multiple
           accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
 
-        <button class="full" type="submit">
-          ＋ Aggiungi promemoria
-        </button>
+        <button class="full" type="submit">＋ Aggiungi spesa</button>
       </form>
     </div>
 
     <div class="card">
-      <div id="remindersList"></div>
+      <h3>Da pagare</h3>
+      <div id="unpaidExpenses"></div>
     </div>
 
+    <div class="card">
+      <h3>Pagate</h3>
+      <div id="paidExpenses"></div>
+    </div>
   </section>
 
   <!-- IMPOSTAZIONI -->
-
   <section id="settings" class="section">
-
     <div class="panel">
       <h2>⚙️ Impostazioni</h2>
 
@@ -525,7 +482,6 @@ footer {
       <p id="notificationStatus" class="muted">
         Controlla le notifiche di questo dispositivo.
       </p>
-
       <button id="enableNotifications" class="secondary full">
         Attiva notifiche
       </button>
@@ -533,15 +489,12 @@ footer {
 
     <div class="panel">
       <h3>🔐 Sicurezza</h3>
-      <p class="muted">
-        Account attualmente collegato:
-      </p>
+      <p class="muted">Account attualmente collegato:</p>
       <strong id="accountEmail"></strong>
 
       <p class="muted">
         L'accesso è protetto da autenticazione Supabase.
-        I dati e gli allegati sono riservati ai componenti
-        autorizzati della famiglia.
+        I dati e gli allegati sono riservati ai componenti autorizzati della famiglia.
       </p>
 
       <button id="settingsLogout" class="danger full">
@@ -552,15 +505,10 @@ footer {
     <div class="panel">
       <h3>ℹ️ Informazioni sull'app</h3>
       <p><strong>Casa Romito/Pindemonte</strong></p>
-      <p class="muted">Versione 2.0</p>
-      <p class="muted">
-        Applicazione privata per l'organizzazione familiare.
-      </p>
-      <p class="muted">
-        Dati sincronizzati attraverso Supabase.
-      </p>
+      <p class="muted">Versione 2.1</p>
+      <p class="muted">Applicazione privata per l'organizzazione familiare.</p>
+      <p class="muted">Dati sincronizzati attraverso Supabase.</p>
     </div>
-
   </section>
 
 </section>
@@ -574,7 +522,6 @@ footer {
 (() => {
 
   // CONFIGURAZIONE SUPABASE
-
   const SUPABASE_URL =
     "https://kxzxjusmnpsnsxyuyydi.supabase.co";
 
@@ -610,7 +557,7 @@ footer {
   let currentData = {
     tasks: [],
     shopping: [],
-    reminders: [],
+    expenses: [],
     shifts: []
   };
 
@@ -627,6 +574,13 @@ footer {
     $("status").textContent = message;
   }
 
+  function money(value) {
+    return Number(value || 0).toLocaleString("it-IT", {
+      style:"currency",
+      currency:"EUR"
+    });
+  }
+
   function localDate(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2,"0");
@@ -641,7 +595,7 @@ footer {
 
   function formatDate(value) {
     if (!value) return "";
-    return parseDate(value).toLocaleDateString("it-IT",{
+    return parseDate(value).toLocaleDateString("it-IT", {
       weekday:"long",
       day:"numeric",
       month:"long"
@@ -694,11 +648,8 @@ footer {
       </option>
     `;
 
-    $("francescoShiftTitle").textContent =
-      settings.francesco_name;
-
-    $("lindaShiftTitle").textContent =
-      settings.linda_name;
+    $("francescoShiftTitle").textContent = settings.francesco_name;
+    $("lindaShiftTitle").textContent = settings.linda_name;
   }
 
   async function loadSettings() {
@@ -726,16 +677,13 @@ footer {
       displayName = settings.linda_name;
     }
 
-    $("who").textContent =
-      displayName + " · " + (user.email || "");
-
+    $("who").textContent = displayName + " · " + (user.email || "");
     $("accountEmail").textContent = user.email || "";
 
     return true;
   }
 
   // GESTIONE SETTIMANE
-
   function getWeekRange() {
     const now = new Date();
     now.setHours(0,0,0,0);
@@ -759,10 +707,7 @@ footer {
   function renderWeekLabel() {
     const week = getWeekRange();
 
-    const options = {
-      day:"numeric",
-      month:"short"
-    };
+    const options = {day:"numeric",month:"short"};
 
     $("weekLabel").textContent =
       week.monday.toLocaleDateString("it-IT",options) +
@@ -776,7 +721,6 @@ footer {
 
   async function loadShifts() {
     const week = getWeekRange();
-
     renderWeekLabel();
 
     const {data,error} = await db
@@ -799,14 +743,8 @@ footer {
 
   function renderShifts() {
     const people = [
-      {
-        name:settings.francesco_name,
-        target:"francescoShifts"
-      },
-      {
-        name:settings.linda_name,
-        target:"lindaShifts"
-      }
+      {name:settings.francesco_name,target:"francescoShifts"},
+      {name:settings.linda_name,target:"lindaShifts"}
     ];
 
     people.forEach(person => {
@@ -817,8 +755,7 @@ footer {
       const list = $(person.target);
 
       if (!shifts.length) {
-        list.innerHTML =
-          '<p class="muted">Nessun turno questa settimana.</p>';
+        list.innerHTML = '<p class="muted">Nessun turno questa settimana.</p>';
         return;
       }
 
@@ -826,22 +763,15 @@ footer {
         <div class="shift-card">
           <div class="details">
             <strong>${safe(formatDate(shift.shift_date))}</strong>
-
             <div class="meta">
               ${safe((shift.start_time || "").slice(0,5))}
               –
               ${safe((shift.end_time || "").slice(0,5))}
             </div>
-
-            ${shift.notes
-              ? `<div class="meta">${safe(shift.notes)}</div>`
-              : ""}
+            ${shift.notes ? `<div class="meta">${safe(shift.notes)}</div>` : ""}
           </div>
-
           <button class="danger small"
-            onclick="window.homeApp.removeShift('${safe(shift.id)}')">
-            ✕
-          </button>
+            onclick="window.homeApp.removeShift('${safe(shift.id)}')">✕</button>
         </div>
       `).join("");
     });
@@ -892,9 +822,7 @@ footer {
 
     $("shiftForm").reset();
     $("shiftDate").value = localDate(new Date());
-
     weekOffset = 0;
-
     await loadShifts();
   });
 
@@ -915,14 +843,11 @@ footer {
   }
 
   // ALLEGATI
-
   function uniqueId() {
     if (window.crypto && crypto.randomUUID) {
       return crypto.randomUUID();
     }
-
-    return Date.now() + "-" +
-      Math.random().toString(36).slice(2);
+    return Date.now() + "-" + Math.random().toString(36).slice(2);
   }
 
   function safeFileName(name) {
@@ -937,11 +862,8 @@ footer {
 
     try {
       for (const file of Array.from(files)) {
-
         if (file.size > MAX_FILE_SIZE) {
-          throw new Error(
-            file.name + " supera il limite di 10 MB."
-          );
+          throw new Error(file.name + " supera il limite di 10 MB.");
         }
 
         const path =
@@ -979,17 +901,12 @@ footer {
         .insert(metadata);
 
       if (insertError) throw insertError;
-
       return true;
 
     } catch (error) {
-
       if (uploadedPaths.length) {
-        await db.storage
-          .from(STORAGE_BUCKET)
-          .remove(uploadedPaths);
+        await db.storage.from(STORAGE_BUCKET).remove(uploadedPaths);
       }
-
       alert("Errore negli allegati: " + error.message);
       return false;
     }
@@ -1044,9 +961,7 @@ footer {
             📎 ${safe(file.original_name)}
           </a>
         ` : `
-          <span class="attachment-link">
-            📎 ${safe(file.original_name)}
-          </span>
+          <span class="attachment-link">📎 ${safe(file.original_name)}</span>
         `).join("")}
       </div>
     `;
@@ -1061,7 +976,6 @@ footer {
       .eq("entity_id",entityId);
 
     if (error) throw error;
-
     if (!data || !data.length) return;
 
     const paths = data.map(file => file.file_path);
@@ -1083,11 +997,10 @@ footer {
   }
 
   // CARICAMENTO DATI
-
   async function loadData() {
     if (!user) return;
 
-    const tables = ["tasks","shopping","reminders"];
+    const tables = ["tasks","shopping","household_expenses"];
 
     const results = await Promise.all(
       tables.map(table =>
@@ -1101,27 +1014,26 @@ footer {
     const errors = results.filter(result => result.error);
 
     if (errors.length) {
-      status("Errore nel caricamento: " +
-        errors[0].error.message);
+      status("Errore nel caricamento: " + errors[0].error.message);
       return;
     }
 
-    const [tasks,shopping,reminders] =
+    const [tasks,shopping,expenses] =
       results.map(result => result.data || []);
 
-    const [taskAttachments,reminderAttachments] =
+    const [taskAttachments,expenseAttachments] =
       await Promise.all([
         loadAttachments("task",tasks.map(item => item.id)),
-        loadAttachments("reminder",reminders.map(item => item.id))
+        loadAttachments("expense",expenses.map(item => item.id))
       ]);
 
     currentData.tasks = tasks;
     currentData.shopping = shopping;
-    currentData.reminders = reminders;
+    currentData.expenses = expenses;
 
     renderTasks(tasks,taskAttachments);
     renderShopping(shopping);
-    renderReminders(reminders,reminderAttachments);
+    renderExpenses(expenses,expenseAttachments);
 
     const urgentCount = tasks.filter(
       task => task.urgent && !task.completed
@@ -1141,14 +1053,10 @@ footer {
 
     renderHome();
 
-    status(
-      "Dati aggiornati · " +
-      new Date().toLocaleTimeString("it-IT")
-    );
+    status("Dati aggiornati · " + new Date().toLocaleTimeString("it-IT"));
   }
 
   // HOME
-
   function renderHome() {
     $("homeTasks").textContent =
       currentData.tasks.filter(item => !item.completed).length;
@@ -1156,21 +1064,20 @@ footer {
     $("homeShopping").textContent =
       currentData.shopping.filter(item => !item.completed).length;
 
-    $("homeReminders").textContent =
-      currentData.reminders.length;
+    const unpaidTotal = currentData.expenses
+      .filter(item => !item.paid)
+      .reduce((sum,item) => sum + Number(item.amount || 0),0);
 
-    $("homeShifts").textContent =
-      currentData.shifts.length;
+    $("homeExpenses").textContent = money(unpaidTotal);
+    $("homeShifts").textContent = currentData.shifts.length;
   }
 
   // COMPITI
-
   function renderTasks(items,attachments = {}) {
     const list = $("tasksList");
 
     if (!items.length) {
-      list.innerHTML =
-        '<p class="muted">Non ci sono ancora compiti.</p>';
+      list.innerHTML = '<p class="muted">Non ci sono ancora compiti.</p>';
       return;
     }
 
@@ -1187,22 +1094,13 @@ footer {
 
         <div class="details">
           <strong>${safe(item.title)}</strong>
-
-          <span class="tag">
-            ${safe(assignedName(item.assigned_to))}
-          </span>
-
-          ${item.urgent
-            ? '<span class="tag urgent-tag">URGENTE</span>'
-            : ""}
-
+          <span class="tag">${safe(assignedName(item.assigned_to))}</span>
+          ${item.urgent ? '<span class="tag urgent-tag">URGENTE</span>' : ""}
           ${renderAttachments(attachments[item.id])}
         </div>
 
         <button class="danger small"
-          onclick="window.homeApp.remove(
-            'tasks','${safe(item.id)}','task'
-          )">✕</button>
+          onclick="window.homeApp.remove('tasks','${safe(item.id)}','task')">✕</button>
       </div>
     `).join("");
   }
@@ -1211,7 +1109,6 @@ footer {
     event.preventDefault();
 
     const title = $("taskTitle").value.trim();
-
     if (!title) return;
 
     const files = $("taskFiles").files;
@@ -1233,33 +1130,25 @@ footer {
     }
 
     if (files.length) {
-      const ok = await uploadAttachments("task",data.id,files);
-
-      if (!ok) {
-        alert("Il compito è stato salvato, ma alcuni allegati non sono stati caricati.");
-      }
+      await uploadAttachments("task",data.id,files);
     }
 
     $("taskForm").reset();
     $("taskAssigned").value = "Entrambi";
-
     await loadData();
   });
 
   // SPESA
-
   function renderShopping(items) {
     const list = $("shoppingList");
 
     if (!items.length) {
-      list.innerHTML =
-        '<p class="muted">La lista della spesa è vuota.</p>';
+      list.innerHTML = '<p class="muted">La lista della spesa è vuota.</p>';
       return;
     }
 
     list.innerHTML = items.map(item => `
       <div class="item ${item.completed ? "done" : ""}">
-
         <input type="checkbox"
           ${item.completed ? "checked" : ""}
           aria-label="Prodotto acquistato"
@@ -1272,9 +1161,7 @@ footer {
         </div>
 
         <button class="danger small"
-          onclick="window.homeApp.remove(
-            'shopping','${safe(item.id)}'
-          )">✕</button>
+          onclick="window.homeApp.remove('shopping','${safe(item.id)}')">✕</button>
       </div>
     `).join("");
   }
@@ -1283,7 +1170,6 @@ footer {
     event.preventDefault();
 
     const title = $("shoppingTitle").value.trim();
-
     if (!title) return;
 
     const {error} = await db.from("shopping").insert({
@@ -1301,88 +1187,109 @@ footer {
     await loadData();
   });
 
-  // PROMEMORIA
+  // DA PAGARE
+  function renderExpenses(items,attachments = {}) {
+    const unpaid = items.filter(item => !item.paid);
+    const paid = items.filter(item => item.paid);
 
-  function renderReminders(items,attachments = {}) {
-    const list = $("remindersList");
+    const unpaidTotal = unpaid.reduce(
+      (sum,item) => sum + Number(item.amount || 0),0
+    );
 
-    if (!items.length) {
-      list.innerHTML =
-        '<p class="muted">Non ci sono promemoria.</p>';
+    const paidTotal = paid.reduce(
+      (sum,item) => sum + Number(item.amount || 0),0
+    );
+
+    $("totalUnpaid").textContent = money(unpaidTotal);
+    $("totalPaid").textContent = money(paidTotal);
+
+    function renderList(listItems,isPaid) {
+      if (!listItems.length) {
+        return isPaid
+          ? '<p class="muted">Non ci sono ancora spese pagate.</p>'
+          : '<p class="muted">Non ci sono spese da pagare.</p>';
+      }
+
+      return listItems.map(item => `
+        <div class="item ${isPaid ? "done" : ""}">
+          <input type="checkbox"
+            ${item.paid ? "checked" : ""}
+            aria-label="Segna come pagata"
+            onchange="window.homeApp.toggle(
+              'household_expenses','${safe(item.id)}','paid',this.checked
+            )">
+
+          <div class="details">
+            <strong>${safe(item.title)}</strong>
+            <div class="meta">${safe(money(item.amount))}</div>
+
+            ${item.due_date
+              ? `<div class="meta">Scadenza: ${safe(formatDate(item.due_date))}</div>`
+              : ""}
+
+            ${item.paid
+              ? '<span class="tag paid-tag">PAGATO</span>'
+              : '<span class="tag unpaid-tag">DA PAGARE</span>'}
+
+            ${renderAttachments(attachments[item.id])}
+          </div>
+
+          <button class="danger small"
+            onclick="window.homeApp.remove(
+              'household_expenses','${safe(item.id)}','expense'
+            )">✕</button>
+        </div>
+      `).join("");
+    }
+
+    $("unpaidExpenses").innerHTML = renderList(unpaid,false);
+    $("paidExpenses").innerHTML = renderList(paid,true);
+  }
+
+  $("expenseForm").addEventListener("submit",async event => {
+    event.preventDefault();
+
+    const title = $("expenseTitle").value.trim();
+    const amount = Number($("expenseAmount").value);
+    const dueDate = $("expenseDate").value || null;
+    const files = $("expenseFiles").files;
+
+    if (!title) {
+      alert("Inserisci una descrizione per la spesa.");
       return;
     }
 
-    list.innerHTML = items.map(item => `
-      <div class="item">
-        <div class="details">
-          <strong>${safe(item.title)}</strong>
+    if (!Number.isFinite(amount) || amount <= 0) {
+      alert("Inserisci un importo valido, maggiore di zero.");
+      return;
+    }
 
-          <div class="meta">
-            ${safe(formatDate(item.reminder_date))}
-            ${item.reminder_time
-              ? " · " + safe(item.reminder_time.slice(0,5))
-              : ""}
-          </div>
-
-          ${item.details
-            ? `<div class="meta">${safe(item.details)}</div>`
-            : ""}
-
-          ${renderAttachments(attachments[item.id])}
-        </div>
-
-        <button class="danger small"
-          onclick="window.homeApp.remove(
-            'reminders','${safe(item.id)}','reminder'
-          )">✕</button>
-      </div>
-    `).join("");
-  }
-
-  $("reminderForm").addEventListener(
-    "submit",async event => {
-
-    event.preventDefault();
-
-    const title = $("reminderTitle").value.trim();
-
-    if (!title) return;
-
-    const files = $("reminderFiles").files;
-
-    const {data,error} = await db.from("reminders")
+    const {data,error} = await db
+      .from("household_expenses")
       .insert({
+        household_id:HOUSEHOLD_ID,
         title,
-        reminder_date:$("reminderDate").value,
-        reminder_time:$("reminderTime").value || null,
-        details:$("reminderDetails").value.trim() || null,
-        household_id:HOUSEHOLD_ID
+        amount,
+        due_date:dueDate,
+        paid:false
       })
       .select()
       .single();
 
     if (error) {
-      alert("Errore nel salvataggio: " + error.message);
+      alert("Errore nel salvataggio della spesa: " + error.message);
       return;
     }
 
     if (files.length) {
-      const ok = await uploadAttachments(
-        "reminder",data.id,files
-      );
-
-      if (!ok) {
-        alert("Il promemoria è stato salvato, ma alcuni allegati non sono stati caricati.");
-      }
+      await uploadAttachments("expense",data.id,files);
     }
 
-    $("reminderForm").reset();
-
+    $("expenseForm").reset();
     await loadData();
   });
 
   // ELIMINAZIONE E COMPLETAMENTO
-
   async function toggle(table,id,column,value) {
     const {error} = await db.from(table)
       .update({[column]:value})
@@ -1410,7 +1317,6 @@ footer {
         .eq("household_id",HOUSEHOLD_ID);
 
       if (error) throw error;
-
       await loadData();
 
     } catch (error) {
@@ -1425,7 +1331,6 @@ footer {
   };
 
   // NOTIFICHE
-
   function updateNotificationStatus() {
     if (!("Notification" in window)) {
       $("notificationStatus").textContent =
@@ -1452,16 +1357,13 @@ footer {
     }
   }
 
-  $("enableNotifications").addEventListener(
-    "click",async () => {
-
+  $("enableNotifications").addEventListener("click",async () => {
     if (!("Notification" in window)) {
       alert("Questo browser non supporta le notifiche.");
       return;
     }
 
     const permission = await Notification.requestPermission();
-
     updateNotificationStatus();
 
     if (permission === "granted") {
@@ -1472,7 +1374,6 @@ footer {
   });
 
   // AUTENTICAZIONE
-
   $("loginForm").addEventListener("submit",async event => {
     event.preventDefault();
 
@@ -1521,46 +1422,27 @@ footer {
   $("settingsLogout").addEventListener("click",logout);
 
   // NAVIGAZIONE
-
   function openTab(tab) {
-    document.querySelectorAll(".tabs button")
-      .forEach(button => {
-        button.classList.toggle(
-          "active",button.dataset.tab === tab
-        );
-      });
+    document.querySelectorAll(".tabs button").forEach(button => {
+      button.classList.toggle("active",button.dataset.tab === tab);
+    });
 
-    document.querySelectorAll(".section")
-      .forEach(section => {
-        section.classList.toggle(
-          "active",section.id === tab
-        );
-      });
+    document.querySelectorAll(".section").forEach(section => {
+      section.classList.toggle("active",section.id === tab);
+    });
 
     if (tab === "shifts") {
       loadShifts();
     }
   }
 
-  document.querySelectorAll(".tabs button")
-    .forEach(button => {
-      button.addEventListener("click",() => {
-        openTab(button.dataset.tab);
-      });
-    });
-
-  document.querySelectorAll("[data-go]")
-    .forEach(button => {
-      button.addEventListener("click",() => {
-        openTab(button.dataset.go);
-      });
-    });
+  document.querySelectorAll(".tabs button").forEach(button => {
+    button.addEventListener("click",() => openTab(button.dataset.tab));
+  });
 
   // AVVIO
-
   async function startApp() {
     showApp();
-
     status("Verifica dell'account in corso…");
 
     const {data:member,error:memberError} = await db
@@ -1574,18 +1456,14 @@ footer {
       !member ||
       member.household_id !== HOUSEHOLD_ID
     ) {
-      status(
-        "Questo account non risulta associato alla famiglia."
-      );
+      status("Questo account non risulta associato alla famiglia.");
       return;
     }
 
     const settingsOk = await loadSettings();
-
     if (!settingsOk) return;
 
     $("shiftDate").value = localDate(new Date());
-
     updateNotificationStatus();
 
     await loadData();
@@ -1611,7 +1489,7 @@ footer {
 
       .on(
         "postgres_changes",
-        {event:"*",schema:"public",table:"reminders"},
+        {event:"*",schema:"public",table:"household_expenses"},
         () => loadData()
       )
 
@@ -1651,7 +1529,6 @@ footer {
   }
 
   db.auth.getSession().then(async ({data,error}) => {
-
     if (error) {
       $("loginError").textContent = error.message;
       return;
