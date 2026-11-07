@@ -6,6 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#16b8b0">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Casa">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
 <title>Casa Romito/Pindemonte</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -89,7 +92,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
   <h1>Casa Romito/Pindemonte 🏡</h1>
   <p>La nostra casa, tutto sotto controllo.</p>
 </header>
-
 <main>
 <section id="login" class="panel">
   <h2>Accedi alla nostra casa</h2>
@@ -101,7 +103,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
   </form>
   <p id="loginError" class="muted"></p>
 </section>
-
 <section id="app" class="hidden">
   <div class="panel">
     <div class="row" style="justify-content:space-between">
@@ -116,7 +117,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       Attiva notifiche su questo telefono
     </button>
   </div>
-
   <nav class="tabs">
     <button class="active" data-tab="tasks">Compiti</button>
     <button data-tab="shopping">Spesa</button>
@@ -125,7 +125,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     <button data-tab="home">Casa</button>
     <button data-tab="settings">Impostazioni</button>
   </nav>
-
   <section id="tasks" class="section active">
     <div class="panel">
       <h2>🧹 Compiti di casa</h2>
@@ -144,7 +143,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       <div id="tasksList"></div>
     </div>
   </section>
-
   <section id="shopping" class="section">
     <div class="panel">
       <h2>🛒 Lista della spesa</h2>
@@ -155,7 +153,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     </div>
     <div class="card"><div id="shoppingList"></div></div>
   </section>
-
   <section id="reminders" class="section">
     <div class="panel">
       <h2>🔔 Promemoria</h2>
@@ -169,7 +166,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     </div>
     <div class="card"><div id="remindersList"></div></div>
   </section>
-
   <section id="notes" class="section">
     <div class="panel">
       <h2>📌 Bacheca di casa</h2>
@@ -180,7 +176,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     </div>
     <div class="card"><div id="notesList"></div></div>
   </section>
-
   <section id="home" class="section">
     <div class="panel">
       <h2>🏡 La nostra casa</h2>
@@ -188,7 +183,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       <p class="muted">I dati vengono salvati nel database condiviso e aggiornati sui telefoni connessi.</p>
     </div>
   </section>
-
   <section id="settings" class="section">
     <div class="panel">
       <h2>⚙️ Impostazioni di famiglia</h2>
@@ -205,7 +199,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
   </section>
 </section>
 </main>
-
 <footer>Casa Romito/Pindemonte · Spazio privato di famiglia</footer>
 
 <script>
@@ -216,12 +209,10 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const $ = id => document.getElementById(id);
-
   let user = null;
   let channel = null;
   let refreshTimer = null;
   let previousUrgentCount = null;
-
   let settings = {
     francesco_name: "Francesco",
     linda_name: "Linda",
@@ -236,7 +227,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
   function status(message) {
     $("status").textContent = message;
   }
-
   function showApp() {
     $("login").classList.add("hidden");
     $("app").classList.remove("hidden");
@@ -247,44 +237,17 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     $("login").classList.remove("hidden");
   }
 
-  // Traduce anche le vecchie assegnazioni salvate.
   function assignedName(value) {
-    if (value === "Io" || value === "Francesco") {
-      return settings.francesco_name || "Francesco";
-    }
-
-    if (value === "Mia moglie" || value === "Linda") {
-      return settings.linda_name || "Linda";
-    }
-
-    if (value === "Entrambi" || !value) {
-      return "Entrambi";
-    }
-
-    if (value === settings.francesco_name) {
-      return settings.francesco_name;
-    }
-
-    if (value === settings.linda_name) {
-      return settings.linda_name;
-    }
-
-    return value;
+    if (value === "Io" || value === "Francesco") return settings.francesco_name;
+    if (value === "Mia moglie" || value === "Linda") return settings.linda_name;
+    return value || "Entrambi";
   }
-
-  // I valori salvati sono stabili: Francesco, Linda, Entrambi.
-  // Le etichette visibili seguono i nomi modificabili nelle impostazioni.
   function populateAssignedOptions() {
-    const francesco = settings.francesco_name || "Francesco";
-    const linda = settings.linda_name || "Linda";
-
     $("taskAssigned").innerHTML = `
       <option value="Entrambi">Entrambi</option>
-      <option value="Francesco">${safe(francesco)}</option>
-      <option value="Linda">${safe(linda)}</option>
+      <option value="${safe(settings.francesco_name)}">${safe(settings.francesco_name)}</option>
+      <option value="${safe(settings.linda_name)}">${safe(settings.linda_name)}</option>
     `;
-
-    $("taskAssigned").value = "Entrambi";
   }
 
   async function loadSettings() {
@@ -293,7 +256,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       .select("*")
       .eq("household_id", HOUSEHOLD_ID)
       .maybeSingle();
-
     if (error) {
       status("Errore nel caricamento dei nomi: " + error.message);
       return false;
@@ -304,27 +266,13 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       return false;
     }
 
-    settings = {
-      ...settings,
-      ...data,
-      francesco_name: data.francesco_name || "Francesco",
-      linda_name: data.linda_name || "Linda"
-    };
-
+    settings = data;
     $("francescoName").value = settings.francesco_name;
     $("lindaName").value = settings.linda_name;
     populateAssignedOptions();
-
     let displayName = "Componente della famiglia";
-
-    if (user.id === settings.francesco_user_id) {
-      displayName = settings.francesco_name;
-    }
-
-    if (user.id === settings.linda_user_id) {
-      displayName = settings.linda_name;
-    }
-
+    if (user.id === settings.francesco_user_id) displayName = settings.francesco_name;
+    if (user.id === settings.linda_user_id) displayName = settings.linda_name;
     $("who").textContent = displayName + " · " + (user.email || "");
 
     return true;
@@ -332,9 +280,7 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   async function loadData() {
     if (!user) return;
-
     const tables = ["tasks", "shopping", "reminders", "notes"];
-
     const results = await Promise.all(tables.map(table =>
       db.from(table).select("*")
         .eq("household_id", HOUSEHOLD_ID)
@@ -342,14 +288,11 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     ));
 
     const errors = results.filter(result => result.error);
-
     if (errors.length) {
       status("Errore nel caricamento: " + errors[0].error.message);
       return;
     }
-
-    const [tasks, shopping, reminders, notes] =
-      results.map(result => result.data || []);
+    const [tasks, shopping, reminders, notes] = results.map(result => result.data || []);
 
     renderTasks(tasks);
     renderShopping(shopping);
@@ -357,25 +300,19 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     renderNotes(notes);
 
     const urgentCount = tasks.filter(t => t.urgent && !t.completed).length;
-
     if (previousUrgentCount !== null && urgentCount > previousUrgentCount) {
-      notify("Nuovo compito urgente",
-        "È stato aggiunto un compito urgente alla lista di casa.");
+      notify("Nuovo compito urgente", "È stato aggiunto un compito urgente alla lista di casa.");
     }
-
     previousUrgentCount = urgentCount;
-
     status("Dati aggiornati · " + new Date().toLocaleTimeString("it-IT"));
   }
 
   function renderTasks(items) {
     const list = $("tasksList");
-
     if (!items.length) {
       list.innerHTML = '<p class="muted">Non ci sono ancora compiti.</p>';
       return;
     }
-
     list.innerHTML = items.map(item => `
       <div class="item ${item.completed ? "done" : ""} ${item.urgent && !item.completed ? "urgent" : ""}">
         <input type="checkbox" style="width:20px;margin:0"
@@ -392,15 +329,12 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       </div>
     `).join("");
   }
-
   function renderShopping(items) {
     const list = $("shoppingList");
-
     if (!items.length) {
       list.innerHTML = '<p class="muted">La lista della spesa è vuota.</p>';
       return;
     }
-
     list.innerHTML = items.map(item => `
       <div class="item ${item.completed ? "done" : ""}">
         <input type="checkbox" style="width:20px;margin:0"
@@ -413,15 +347,12 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       </div>
     `).join("");
   }
-
   function renderReminders(items) {
     const list = $("remindersList");
-
     if (!items.length) {
       list.innerHTML = '<p class="muted">Non ci sono promemoria.</p>';
       return;
     }
-
     list.innerHTML = items.map(item => `
       <div class="item">
         <div class="details">
@@ -434,15 +365,12 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       </div>
     `).join("");
   }
-
   function renderNotes(items) {
     const list = $("notesList");
-
     if (!items.length) {
       list.innerHTML = '<p class="muted">La bacheca è vuota.</p>';
       return;
     }
-
     list.innerHTML = items.map(item => `
       <div class="item">
         <div class="details">
@@ -454,7 +382,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       </div>
     `).join("");
   }
-
   async function add(table, values) {
     const {error} = await db.from(table).insert({
       ...values,
@@ -475,7 +402,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       .update({[column]:value})
       .eq("id",id)
       .eq("household_id",HOUSEHOLD_ID);
-
     if (error) alert("Errore: " + error.message);
     else await loadData();
   }
@@ -491,7 +417,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     if (error) alert("Errore: " + error.message);
     else await loadData();
   }
-
   function notify(title, body) {
     if ("Notification" in window && Notification.permission === "granted") {
       new Notification(title,{body});
@@ -508,7 +433,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       email:$("email").value.trim(),
       password:$("password").value
     });
-
     if (error) {
       $("loginError").textContent = "Accesso non riuscito: " + error.message;
       return;
@@ -521,13 +445,10 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
   $("logout").addEventListener("click", async () => {
     await db.auth.signOut();
     user = null;
-
     if (channel) await db.removeChannel(channel);
     if (refreshTimer) clearInterval(refreshTimer);
-
     showLogin();
   });
-
   $("enableNotifications").addEventListener("click", async () => {
     if (!("Notification" in window)) {
       alert("Questo browser non supporta le notifiche.");
@@ -535,15 +456,12 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     }
 
     const permission = await Notification.requestPermission();
-
     alert(permission === "granted"
       ? "Notifiche abilitate su questo telefono."
       : "Permesso notifiche non concesso.");
   });
-
   $("taskForm").addEventListener("submit", async event => {
     event.preventDefault();
-
     const title = $("taskTitle").value.trim();
     if (!title) return;
 
@@ -559,12 +477,9 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       $("taskAssigned").value = "Entrambi";
     }
   });
-
   $("shoppingForm").addEventListener("submit", async event => {
     event.preventDefault();
-
     const title = $("shoppingTitle").value.trim();
-
     if (title && await add("shopping",{title,completed:false})) {
       $("shoppingForm").reset();
     }
@@ -572,10 +487,8 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   $("reminderForm").addEventListener("submit", async event => {
     event.preventDefault();
-
     const title = $("reminderTitle").value.trim();
     if (!title) return;
-
     const ok = await add("reminders",{
       title,
       reminder_date:$("reminderDate").value,
@@ -588,14 +501,11 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   $("noteForm").addEventListener("submit", async event => {
     event.preventDefault();
-
     const message = $("noteMessage").value.trim();
-
     if (message && await add("notes",{message})) {
       $("noteForm").reset();
     }
   });
-
   $("settingsForm").addEventListener("submit", async event => {
     event.preventDefault();
 
@@ -606,7 +516,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       $("settingsMessage").textContent = "Inserisci entrambi i nomi.";
       return;
     }
-
     const {error} = await db.from("household_settings")
       .update({
         francesco_name:francesco,
@@ -616,25 +525,18 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
       .eq("household_id",HOUSEHOLD_ID);
 
     if (error) {
-      $("settingsMessage").textContent =
-        "Errore nel salvataggio: " + error.message;
+      $("settingsMessage").textContent = "Errore nel salvataggio: " + error.message;
       return;
     }
 
     $("settingsMessage").textContent = "Nomi salvati correttamente!";
-
     await loadSettings();
     await loadData();
   });
-
   document.querySelectorAll(".tabs button").forEach(button => {
     button.addEventListener("click", () => {
-      document.querySelectorAll(".tabs button")
-        .forEach(b => b.classList.remove("active"));
-
-      document.querySelectorAll(".section")
-        .forEach(s => s.classList.remove("active"));
-
+      document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
       button.classList.add("active");
       $(button.dataset.tab).classList.add("active");
     });
@@ -642,7 +544,6 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
 
   async function startApp() {
     showApp();
-
     const {data:member,error:memberError} = await db
       .from("household_members")
       .select("household_id")
@@ -660,27 +561,20 @@ footer {text-align:center;color:var(--muted);font-size:12px;padding:15px}
     await loadData();
 
     if (channel) await db.removeChannel(channel);
-
     channel = db.channel("casa-romito-pindemonte")
-      .on("postgres_changes",
-        {event:"*",schema:"public"},
-        payload => {
-          if ([
-            "tasks","shopping","reminders","notes","household_settings"
-          ].includes(payload.table)) {
-            loadSettings().then(loadData);
-          }
-        })
+      .on("postgres_changes",{event:"*",schema:"public"},payload => {
+        if (["tasks","shopping","reminders","notes","household_settings"].includes(payload.table)) {
+          loadSettings().then(loadData);
+        }
+      })
       .subscribe();
 
     if (refreshTimer) clearInterval(refreshTimer);
-
     refreshTimer = setInterval(async () => {
       await loadSettings();
       await loadData();
     },15000);
   }
-
   db.auth.getSession().then(async ({data,error}) => {
     if (error) {
       status("Errore di accesso: " + error.message);
