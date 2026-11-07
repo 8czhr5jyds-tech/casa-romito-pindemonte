@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -532,6 +531,11 @@ footer {
     "be8f07ee-b389-4bd8-9a9e-6de9c672eb48";
 
   const STORAGE_BUCKET = "household-files";
+
+  // CHIAVE PUBBLICA VAPID PER LE NOTIFICHE PUSH
+  const VAPID_PUBLIC_KEY =
+    "BN26id35mPhkakPdmJvKBw-NjqKMHuOwo8DNJ210OLIvP9pTZwCkRXLkAeBwl4EYyXqCGCbjMkeJmLly0lCEW-Y";
+
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
   const db = window.supabase.createClient(
@@ -544,7 +548,6 @@ footer {
   let user = null;
   let channel = null;
   let refreshTimer = null;
-  let previousUrgentCount = null;
   let weekOffset = 0;
 
   let settings = {
@@ -1035,22 +1038,6 @@ footer {
     renderShopping(shopping);
     renderExpenses(expenses,expenseAttachments);
 
-    const urgentCount = tasks.filter(
-      task => task.urgent && !task.completed
-    ).length;
-
-    if (
-      previousUrgentCount !== null &&
-      urgentCount > previousUrgentCount
-    ) {
-      notify(
-        "Nuovo compito urgente",
-        "È stato aggiunto un compito urgente alla lista di casa."
-      );
-    }
-
-    previousUrgentCount = urgentCount;
-
     renderHome();
 
     status("Dati aggiornati · " + new Date().toLocaleTimeString("it-IT"));
@@ -1330,7 +1317,7 @@ footer {
     removeShift
   };
 
-  // NOTIFICHE
+  // NOTIFICHE PUSH
   function updateNotificationStatus() {
     if (!("Notification" in window)) {
       $("notificationStatus").textContent =
@@ -1342,36 +1329,157 @@ footer {
 
     $("notificationStatus").textContent =
       permission === "granted"
-        ? "Notifiche abilitate su questo dispositivo."
+        ? "Permesso notifiche concesso. Registrazione push in corso o attiva."
         : permission === "denied"
-          ? "Notifiche bloccate. Modifica i permessi del browser."
+          ? "Notifiche bloccate. Modifica i permessi del dispositivo."
           : "Le notifiche non sono ancora state autorizzate.";
   }
 
-  function notify(title,body) {
-    if (
-      "Notification" in window &&
-      Notification.permission === "granted"
-    ) {
-      new Notification(title,{body});
-    }
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+
+    const base64 = (base64String + padding)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+    const rawData = atob(base64);
+
+    return Uint8Array.from(
+      rawData,
+      char => char.charCodeAt(0)
+    );
   }
 
-  $("enableNotifications").addEventListener("click",async () => {
+  async function registerPushNotifications() {
+    if (!user) {
+      throw new Error("Accedi prima di registrare questo dispositivo.");
+    }
+
+    if (
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window)
+    ) {
+      throw new Error(
+        "Questo dispositivo o browser non supporta le notifiche push."
+      );
+    }
+
     if (!("Notification" in window)) {
-      alert("Questo browser non supporta le notifiche.");
-      return;
+      throw new Error("Le notifiche non sono supportate.");
     }
 
-    const permission = await Notification.requestPermission();
-    updateNotificationStatus();
-
-    if (permission === "granted") {
-      alert("Notifiche abilitate su questo dispositivo.");
-    } else {
-      alert("Permesso notifiche non concesso.");
+    if (!window.isSecureContext) {
+      throw new Error(
+        "Le notifiche richiedono una connessione HTTPS."
+      );
     }
-  });
+
+    if (Notification.permission !== "granted") {
+      throw new Error(
+        "Prima devi concedere il permesso per le notifiche."
+      );
+    }
+
+    const registration =
+      await navigator.serviceWorker.register("./sw.js", {
+        scope: "./"
+      });
+
+    await navigator.serviceWorker.ready;
+
+    let subscription =
+      await registration.pushManager.getSubscription();
+
+    if (!subscription) {
+      subscription =
+        await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey:
+            urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+    }
+
+    const json = subscription.toJSON();
+
+    if (
+      !json.endpoint ||
+      !json.keys ||
+      !json.keys.p256dh ||
+      !json.keys.auth
+    ) {
+      throw new Error(
+        "Il dispositivo non ha restituito i dati necessari per le notifiche."
+      );
+    }
+
+    const { error } = await db
+      .from("web_push_subscriptions")
+      .upsert({
+        household_id: HOUSEHOLD_ID,
+        user_id: user.id,
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: "endpoint"
+      });
+
+    if (error) throw error;
+
+    return true;
+  }
+
+  $("enableNotifications").addEventListener(
+    "click",
+    async () => {
+      if (!("Notification" in window)) {
+        alert("Questo browser non supporta le notifiche.");
+        return;
+      }
+
+      if (!user) {
+        alert("Accedi prima di attivare le notifiche.");
+        return;
+      }
+
+      try {
+        const permission =
+          await Notification.requestPermission();
+
+        updateNotificationStatus();
+
+        if (permission !== "granted") {
+          alert(
+            "Permesso notifiche non concesso. " +
+            "Controlla le impostazioni del dispositivo."
+          );
+          return;
+        }
+
+        await registerPushNotifications();
+
+        $("notificationStatus").textContent =
+          "Notifiche push attive e dispositivo registrato.";
+
+        alert(
+          "Perfetto! Questo dispositivo è registrato " +
+          "per ricevere le notifiche di Casa."
+        );
+
+      } catch (error) {
+        console.error("Errore notifiche push:", error);
+
+        $("notificationStatus").textContent =
+          "Non è stato possibile completare la registrazione push.";
+
+        alert(
+          "Non è stato possibile attivare le notifiche: " +
+          error.message
+        );
+      }
+    }
+  );
 
   // AUTENTICAZIONE
   $("loginForm").addEventListener("submit",async event => {
@@ -1403,7 +1511,6 @@ footer {
     }
 
     user = null;
-    previousUrgentCount = null;
 
     if (channel) {
       await db.removeChannel(channel);
@@ -1465,6 +1572,27 @@ footer {
 
     $("shiftDate").value = localDate(new Date());
     updateNotificationStatus();
+
+    // Se l'utente aveva già autorizzato le notifiche,
+    // registra o aggiorna automaticamente il dispositivo.
+    if (
+      "Notification" in window &&
+      Notification.permission === "granted" &&
+      "serviceWorker" in navigator &&
+      "PushManager" in window
+    ) {
+      try {
+        await registerPushNotifications();
+
+        $("notificationStatus").textContent =
+          "Notifiche push attive e dispositivo registrato.";
+      } catch (error) {
+        console.error(
+          "Aggiornamento registrazione push non riuscito:",
+          error
+        );
+      }
+    }
 
     await loadData();
     await loadShifts();
