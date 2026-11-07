@@ -10,7 +10,8 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="./icon.svg">
 <title>Casa Romito/Pindemonte</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
 
 <style>
 :root {
@@ -22,6 +23,7 @@
   --muted:#718486;
   --danger:#d94343;
   --border:#dcebea;
+  --white:#fff;
 }
 * {box-sizing:border-box}
 body {
@@ -38,7 +40,7 @@ header {
 }
 header h1 {margin:0 0 5px;font-size:24px}
 header p {margin:0;opacity:.9;font-size:14px}
-main {max-width:720px;margin:auto;padding:16px}
+main {max-width:760px;margin:auto;padding:16px}
 .panel,.card {
   background:white;
   border-radius:16px;
@@ -61,6 +63,15 @@ input,select,textarea {
   margin-bottom:9px;
 }
 textarea {min-height:75px;resize:vertical}
+input[type=checkbox] {
+  width:20px;
+  margin:0;
+  accent-color:var(--turquoise);
+}
+input[type=file] {
+  padding:9px;
+  font-size:13px;
+}
 button {
   border:0;
   background:var(--turquoise);
@@ -68,9 +79,16 @@ button {
   font-weight:650;
   cursor:pointer;
 }
-button.secondary {background:var(--pale);color:var(--dark)}
-button.danger {background:#fff0f0;color:var(--danger)}
+button.secondary {
+  background:var(--pale);
+  color:var(--dark);
+}
+button.danger {
+  background:#fff0f0;
+  color:var(--danger);
+}
 button.small {padding:7px 10px;font-size:13px}
+button:disabled {opacity:.5;cursor:not-allowed}
 .full {width:100%}
 .row {display:flex;gap:8px;align-items:center}
 .row>* {min-width:0}
@@ -85,6 +103,7 @@ button.small {padding:7px 10px;font-size:13px}
   background:white;
   color:var(--dark);
   padding:11px 5px;
+  font-size:13px;
 }
 .tabs button.active {
   background:var(--turquoise);
@@ -102,8 +121,15 @@ button.small {padding:7px 10px;font-size:13px}
   align-items:center;
 }
 .item .details {flex:1;min-width:0}
-.item strong {display:block;overflow-wrap:anywhere}
-.meta {color:var(--muted);font-size:12px;margin-top:4px}
+.item strong {
+  display:block;
+  overflow-wrap:anywhere;
+}
+.meta {
+  color:var(--muted);
+  font-size:12px;
+  margin-top:4px;
+}
 .done {opacity:.55}
 .done strong {text-decoration:line-through}
 .urgent {border:1px solid #f2aaaa;background:#fff4f3}
@@ -116,10 +142,17 @@ button.small {padding:7px 10px;font-size:13px}
   color:var(--dark);
   margin-top:5px;
 }
-.tag.urgent-tag {background:#ffe0df;color:#a52b2b}
+.tag.urgent-tag {
+  background:#ffe0df;
+  color:#a52b2b;
+}
 .muted {color:var(--muted);font-size:13px}
 .hidden {display:none!important}
-#status {font-size:13px;color:var(--muted);margin:8px 0}
+#status {
+  font-size:13px;
+  color:var(--muted);
+  margin:8px 0;
+}
 #login {max-width:440px;margin:35px auto}
 footer {
   text-align:center;
@@ -127,8 +160,77 @@ footer {
   font-size:12px;
   padding:15px;
 }
+.week-navigation {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin:12px 0;
+}
+.week-navigation strong {
+  font-size:13px;
+  text-align:center;
+}
+.person-title {
+  background:var(--pale);
+  color:var(--dark);
+  padding:12px;
+  border-radius:12px;
+  margin:15px 0 8px;
+  font-weight:700;
+}
+.shift-card {
+  background:white;
+  border:1px solid var(--border);
+  padding:12px;
+  border-radius:12px;
+  margin:8px 0;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.shift-card .details {flex:1;min-width:0}
+.attachment-list {
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:8px;
+}
+.attachment-link {
+  display:inline-block;
+  background:var(--pale);
+  color:var(--dark);
+  text-decoration:none;
+  border-radius:9px;
+  padding:7px 10px;
+  font-size:12px;
+  overflow-wrap:anywhere;
+}
+.stat-grid {
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+}
+.stat {
+  padding:15px;
+  border-radius:13px;
+  background:var(--pale);
+}
+.stat strong {
+  display:block;
+  color:var(--dark);
+  font-size:25px;
+}
+.stat span {font-size:12px;color:var(--muted)}
+.form-label {
+  display:block;
+  color:var(--muted);
+  font-size:12px;
+  margin:5px 0;
+}
 @media(min-width:600px) {
-  .tabs {grid-template-columns:repeat(5,1fr)}
+  .tabs {grid-template-columns:repeat(6,1fr)}
+  .tabs button {font-size:14px}
 }
 </style>
 </head>
@@ -141,6 +243,8 @@ footer {
 </header>
 
 <main>
+
+<!-- ACCESSO -->
 
 <section id="login" class="panel">
   <h2>Accedi alla nostra casa</h2>
@@ -163,6 +267,8 @@ footer {
 
 <section id="app" class="hidden">
 
+  <!-- ACCOUNT -->
+
   <div class="panel">
     <div class="row" style="justify-content:space-between">
       <div>
@@ -171,25 +277,147 @@ footer {
       </div>
       <button id="logout" class="secondary small">Esci</button>
     </div>
-
     <div id="status">Connessione in corso…</div>
-
-    <button id="enableNotifications" class="secondary small">
-      Attiva notifiche su questo telefono
-    </button>
   </div>
 
+  <!-- MENU -->
+
   <nav class="tabs">
-    <button class="active" data-tab="tasks">Compiti</button>
-    <button data-tab="shopping">Spesa</button>
-    <button data-tab="reminders">Promemoria</button>
-    <button data-tab="home">Casa</button>
-    <button data-tab="settings">Impostazioni</button>
+    <button class="active" data-tab="home">🏡 Home</button>
+    <button data-tab="shifts">🗓️ Turni</button>
+    <button data-tab="tasks">🧹 Compiti</button>
+    <button data-tab="shopping">🛒 Spesa</button>
+    <button data-tab="reminders">🔔 Promemoria</button>
+    <button data-tab="settings">⚙️ Impostazioni</button>
   </nav>
+
+  <!-- HOME -->
+
+  <section id="home" class="section active">
+    <div class="panel">
+      <h2>🏡 La nostra casa</h2>
+      <p class="muted">
+        Tutta l'organizzazione familiare in un unico posto.
+      </p>
+
+      <div class="stat-grid">
+        <div class="stat">
+          <strong id="homeTasks">0</strong>
+          <span>Compiti da completare</span>
+        </div>
+        <div class="stat">
+          <strong id="homeShopping">0</strong>
+          <span>Prodotti da acquistare</span>
+        </div>
+        <div class="stat">
+          <strong id="homeReminders">0</strong>
+          <span>Promemoria</span>
+        </div>
+        <div class="stat">
+          <strong id="homeShifts">0</strong>
+          <span>Turni questa settimana</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Organizzazione settimanale</h3>
+      <p class="muted">
+        Consulta i turni lavorativi di Francesco e Linda
+        nella sezione dedicata.
+      </p>
+      <button class="full" data-go="shifts">
+        Visualizza i turni
+      </button>
+    </div>
+  </section>
+
+  <!-- TURNI SETTIMANALI -->
+
+  <section id="shifts" class="section">
+
+    <div class="panel">
+      <h2>🗓️ Turni lavorativi settimanali</h2>
+      <p class="muted">
+        I turni di Francesco e Linda, separati e organizzati
+        settimana per settimana.
+      </p>
+
+      <div class="week-navigation">
+        <button id="previousWeek" class="secondary small">
+          ← Precedente
+        </button>
+
+        <strong id="weekLabel"></strong>
+
+        <button id="nextWeek" class="secondary small">
+          Successiva →
+        </button>
+      </div>
+
+      <button id="currentWeek" class="secondary small full">
+        Torna alla settimana attuale
+      </button>
+    </div>
+
+    <div class="panel">
+      <h3>＋ Aggiungi turno lavorativo</h3>
+
+      <form id="shiftForm">
+
+        <label class="form-label" for="shiftPerson">
+          Persona
+        </label>
+        <select id="shiftPerson" required></select>
+
+        <label class="form-label" for="shiftDate">
+          Giorno
+        </label>
+        <input id="shiftDate" type="date" required>
+
+        <div class="row">
+          <div style="flex:1">
+            <label class="form-label" for="shiftStart">
+              Inizio
+            </label>
+            <input id="shiftStart" type="time" required>
+          </div>
+
+          <div style="flex:1">
+            <label class="form-label" for="shiftEnd">
+              Fine
+            </label>
+            <input id="shiftEnd" type="time" required>
+          </div>
+        </div>
+
+        <textarea id="shiftNotes"
+          placeholder="Note facoltative"></textarea>
+
+        <button class="full" type="submit">
+          ＋ Salva turno
+        </button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="person-title" id="francescoShiftTitle">
+        Francesco
+      </div>
+      <div id="francescoShifts"></div>
+
+      <div class="person-title" id="lindaShiftTitle">
+        Linda
+      </div>
+      <div id="lindaShifts"></div>
+    </div>
+
+  </section>
 
   <!-- COMPITI -->
 
-  <section id="tasks" class="section active">
+  <section id="tasks" class="section">
+
     <div class="panel">
       <h2>🧹 Compiti di casa</h2>
 
@@ -200,10 +428,15 @@ footer {
         <select id="taskAssigned"></select>
 
         <label class="muted">
-          <input id="taskUrgent" type="checkbox"
-            style="width:auto">
+          <input id="taskUrgent" type="checkbox">
           Segna come urgente
         </label>
+
+        <label class="form-label" for="taskFiles">
+          Allega foto o documenti (facoltativo)
+        </label>
+        <input id="taskFiles" type="file" multiple
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
 
         <button class="full" type="submit">
           ＋ Aggiungi compito
@@ -215,11 +448,13 @@ footer {
       <h3>Da fare</h3>
       <div id="tasksList"></div>
     </div>
+
   </section>
 
   <!-- SPESA -->
 
   <section id="shopping" class="section">
+
     <div class="panel">
       <h2>🛒 Lista della spesa</h2>
 
@@ -233,24 +468,39 @@ footer {
     <div class="card">
       <div id="shoppingList"></div>
     </div>
+
   </section>
 
   <!-- PROMEMORIA -->
 
   <section id="reminders" class="section">
+
     <div class="panel">
       <h2>🔔 Promemoria</h2>
 
       <form id="reminderForm">
+
         <input id="reminderTitle"
           placeholder="Titolo del promemoria" required>
 
+        <label class="form-label" for="reminderDate">
+          Data
+        </label>
         <input id="reminderDate" type="date" required>
 
+        <label class="form-label" for="reminderTime">
+          Orario
+        </label>
         <input id="reminderTime" type="time">
 
         <textarea id="reminderDetails"
           placeholder="Dettagli (facoltativi)"></textarea>
+
+        <label class="form-label" for="reminderFiles">
+          Allega fotografie, PDF o documenti
+        </label>
+        <input id="reminderFiles" type="file" multiple
+          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
 
         <button class="full" type="submit">
           ＋ Aggiungi promemoria
@@ -261,59 +511,56 @@ footer {
     <div class="card">
       <div id="remindersList"></div>
     </div>
-  </section>
 
-  <!-- CASA -->
-
-  <section id="home" class="section">
-    <div class="panel">
-      <h2>🏡 La nostra casa</h2>
-
-      <p>
-        Uno spazio condiviso per organizzare compiti,
-        spesa e promemoria familiari.
-      </p>
-
-      <p class="muted">
-        I dati vengono salvati nel database condiviso
-        e aggiornati sui telefoni connessi.
-      </p>
-    </div>
   </section>
 
   <!-- IMPOSTAZIONI -->
 
   <section id="settings" class="section">
-    <div class="panel">
-      <h2>⚙️ Impostazioni di famiglia</h2>
 
-      <p class="muted">
-        Personalizzate i nomi che compariranno nell'app
-        e nelle assegnazioni dei compiti.
+    <div class="panel">
+      <h2>⚙️ Impostazioni</h2>
+
+      <h3>🔔 Notifiche</h3>
+      <p id="notificationStatus" class="muted">
+        Controlla le notifiche di questo dispositivo.
       </p>
 
-      <form id="settingsForm">
-        <label for="francescoName" class="muted">
-          Nome del primo componente
-        </label>
-
-        <input id="francescoName"
-          maxlength="40" required>
-
-        <label for="lindaName" class="muted">
-          Nome del secondo componente
-        </label>
-
-        <input id="lindaName"
-          maxlength="40" required>
-
-        <button class="full" type="submit">
-          Salva i nomi
-        </button>
-      </form>
-
-      <p id="settingsMessage" class="muted"></p>
+      <button id="enableNotifications" class="secondary full">
+        Attiva notifiche
+      </button>
     </div>
+
+    <div class="panel">
+      <h3>🔐 Sicurezza</h3>
+      <p class="muted">
+        Account attualmente collegato:
+      </p>
+      <strong id="accountEmail"></strong>
+
+      <p class="muted">
+        L'accesso è protetto da autenticazione Supabase.
+        I dati e gli allegati sono riservati ai componenti
+        autorizzati della famiglia.
+      </p>
+
+      <button id="settingsLogout" class="danger full">
+        Esci dall'account
+      </button>
+    </div>
+
+    <div class="panel">
+      <h3>ℹ️ Informazioni sull'app</h3>
+      <p><strong>Casa Romito/Pindemonte</strong></p>
+      <p class="muted">Versione 2.0</p>
+      <p class="muted">
+        Applicazione privata per l'organizzazione familiare.
+      </p>
+      <p class="muted">
+        Dati sincronizzati attraverso Supabase.
+      </p>
+    </div>
+
   </section>
 
 </section>
@@ -326,6 +573,8 @@ footer {
 <script>
 (() => {
 
+  // CONFIGURAZIONE SUPABASE
+
   const SUPABASE_URL =
     "https://kxzxjusmnpsnsxyuyydi.supabase.co";
 
@@ -334,6 +583,9 @@ footer {
 
   const HOUSEHOLD_ID =
     "be8f07ee-b389-4bd8-9a9e-6de9c672eb48";
+
+  const STORAGE_BUCKET = "household-files";
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
   const db = window.supabase.createClient(
     SUPABASE_URL,
@@ -346,12 +598,20 @@ footer {
   let channel = null;
   let refreshTimer = null;
   let previousUrgentCount = null;
+  let weekOffset = 0;
 
   let settings = {
     francesco_name: "Francesco",
     linda_name: "Linda",
     francesco_user_id: null,
     linda_user_id: null
+  };
+
+  let currentData = {
+    tasks: [],
+    shopping: [],
+    reminders: [],
+    shifts: []
   };
 
   const safe = value =>
@@ -367,6 +627,27 @@ footer {
     $("status").textContent = message;
   }
 
+  function localDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2,"0");
+    const d = String(date.getDate()).padStart(2,"0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function parseDate(value) {
+    const [y,m,d] = value.split("-").map(Number);
+    return new Date(y,m-1,d);
+  }
+
+  function formatDate(value) {
+    if (!value) return "";
+    return parseDate(value).toLocaleDateString("it-IT",{
+      weekday:"long",
+      day:"numeric",
+      month:"long"
+    });
+  }
+
   function showApp() {
     $("login").classList.add("hidden");
     $("app").classList.remove("hidden");
@@ -378,16 +659,22 @@ footer {
   }
 
   function assignedName(value) {
-    if (value === "Io" || value === "Francesco")
-      return settings.francesco_name;
+    if (
+      value === "Io" ||
+      value === "Francesco" ||
+      value === settings.francesco_name
+    ) return settings.francesco_name;
 
-    if (value === "Mia moglie" || value === "Linda")
-      return settings.linda_name;
+    if (
+      value === "Mia moglie" ||
+      value === "Linda" ||
+      value === settings.linda_name
+    ) return settings.linda_name;
 
     return value || "Entrambi";
   }
 
-  function populateAssignedOptions() {
+  function populateOptions() {
     $("taskAssigned").innerHTML = `
       <option value="Entrambi">Entrambi</option>
       <option value="${safe(settings.francesco_name)}">
@@ -397,6 +684,21 @@ footer {
         ${safe(settings.linda_name)}
       </option>
     `;
+
+    $("shiftPerson").innerHTML = `
+      <option value="${safe(settings.francesco_name)}">
+        ${safe(settings.francesco_name)}
+      </option>
+      <option value="${safe(settings.linda_name)}">
+        ${safe(settings.linda_name)}
+      </option>
+    `;
+
+    $("francescoShiftTitle").textContent =
+      settings.francesco_name;
+
+    $("lindaShiftTitle").textContent =
+      settings.linda_name;
   }
 
   async function loadSettings() {
@@ -406,36 +708,381 @@ footer {
       .eq("household_id",HOUSEHOLD_ID)
       .maybeSingle();
 
-    if (error) {
-      status("Errore nel caricamento dei nomi: " + error.message);
-      return false;
-    }
-
-    if (!data) {
-      status("Impostazioni di famiglia non trovate.");
+    if (error || !data) {
+      status("Errore nel caricamento delle impostazioni.");
       return false;
     }
 
     settings = data;
-
-    $("francescoName").value = settings.francesco_name;
-    $("lindaName").value = settings.linda_name;
-
-    populateAssignedOptions();
+    populateOptions();
 
     let displayName = "Componente della famiglia";
 
-    if (user.id === settings.francesco_user_id)
+    if (user.id === settings.francesco_user_id) {
       displayName = settings.francesco_name;
+    }
 
-    if (user.id === settings.linda_user_id)
+    if (user.id === settings.linda_user_id) {
       displayName = settings.linda_name;
+    }
 
     $("who").textContent =
       displayName + " · " + (user.email || "");
 
+    $("accountEmail").textContent = user.email || "";
+
     return true;
   }
+
+  // GESTIONE SETTIMANE
+
+  function getWeekRange() {
+    const now = new Date();
+    now.setHours(0,0,0,0);
+
+    const day = (now.getDay() + 6) % 7;
+
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - day + weekOffset * 7);
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    return {
+      start: localDate(monday),
+      end: localDate(sunday),
+      monday,
+      sunday
+    };
+  }
+
+  function renderWeekLabel() {
+    const week = getWeekRange();
+
+    const options = {
+      day:"numeric",
+      month:"short"
+    };
+
+    $("weekLabel").textContent =
+      week.monday.toLocaleDateString("it-IT",options) +
+      " – " +
+      week.sunday.toLocaleDateString("it-IT",{
+        day:"numeric",
+        month:"long",
+        year:"numeric"
+      });
+  }
+
+  async function loadShifts() {
+    const week = getWeekRange();
+
+    renderWeekLabel();
+
+    const {data,error} = await db
+      .from("work_shifts")
+      .select("*")
+      .eq("household_id",HOUSEHOLD_ID)
+      .gte("shift_date",week.start)
+      .lte("shift_date",week.end)
+      .order("shift_date",{ascending:true});
+
+    if (error) {
+      status("Errore nel caricamento dei turni: " + error.message);
+      return;
+    }
+
+    currentData.shifts = data || [];
+    renderShifts();
+    renderHome();
+  }
+
+  function renderShifts() {
+    const people = [
+      {
+        name:settings.francesco_name,
+        target:"francescoShifts"
+      },
+      {
+        name:settings.linda_name,
+        target:"lindaShifts"
+      }
+    ];
+
+    people.forEach(person => {
+      const shifts = currentData.shifts.filter(
+        shift => assignedName(shift.person) === person.name
+      );
+
+      const list = $(person.target);
+
+      if (!shifts.length) {
+        list.innerHTML =
+          '<p class="muted">Nessun turno questa settimana.</p>';
+        return;
+      }
+
+      list.innerHTML = shifts.map(shift => `
+        <div class="shift-card">
+          <div class="details">
+            <strong>${safe(formatDate(shift.shift_date))}</strong>
+
+            <div class="meta">
+              ${safe((shift.start_time || "").slice(0,5))}
+              –
+              ${safe((shift.end_time || "").slice(0,5))}
+            </div>
+
+            ${shift.notes
+              ? `<div class="meta">${safe(shift.notes)}</div>`
+              : ""}
+          </div>
+
+          <button class="danger small"
+            onclick="window.homeApp.removeShift('${safe(shift.id)}')">
+            ✕
+          </button>
+        </div>
+      `).join("");
+    });
+  }
+
+  $("previousWeek").addEventListener("click",async () => {
+    weekOffset--;
+    await loadShifts();
+  });
+
+  $("nextWeek").addEventListener("click",async () => {
+    weekOffset++;
+    await loadShifts();
+  });
+
+  $("currentWeek").addEventListener("click",async () => {
+    weekOffset = 0;
+    await loadShifts();
+  });
+
+  $("shiftForm").addEventListener("submit",async event => {
+    event.preventDefault();
+
+    const date = $("shiftDate").value;
+    const start = $("shiftStart").value;
+    const end = $("shiftEnd").value;
+
+    if (!date || !start || !end) return;
+
+    if (end <= start) {
+      alert("L'orario di fine deve essere successivo all'inizio.");
+      return;
+    }
+
+    const {error} = await db.from("work_shifts").insert({
+      household_id:HOUSEHOLD_ID,
+      person:$("shiftPerson").value,
+      shift_date:date,
+      start_time:start,
+      end_time:end,
+      notes:$("shiftNotes").value.trim() || null
+    });
+
+    if (error) {
+      alert("Errore nel salvataggio del turno: " + error.message);
+      return;
+    }
+
+    $("shiftForm").reset();
+    $("shiftDate").value = localDate(new Date());
+
+    weekOffset = 0;
+
+    await loadShifts();
+  });
+
+  async function removeShift(id) {
+    if (!confirm("Vuoi eliminare questo turno?")) return;
+
+    const {error} = await db
+      .from("work_shifts")
+      .delete()
+      .eq("id",id)
+      .eq("household_id",HOUSEHOLD_ID);
+
+    if (error) {
+      alert("Errore: " + error.message);
+    } else {
+      await loadShifts();
+    }
+  }
+
+  // ALLEGATI
+
+  function uniqueId() {
+    if (window.crypto && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+
+    return Date.now() + "-" +
+      Math.random().toString(36).slice(2);
+  }
+
+  function safeFileName(name) {
+    return name.replace(/[^a-zA-Z0-9._-]/g,"_");
+  }
+
+  async function uploadAttachments(entityType,entityId,files) {
+    if (!files || !files.length) return true;
+
+    const uploadedPaths = [];
+    const metadata = [];
+
+    try {
+      for (const file of Array.from(files)) {
+
+        if (file.size > MAX_FILE_SIZE) {
+          throw new Error(
+            file.name + " supera il limite di 10 MB."
+          );
+        }
+
+        const path =
+          HOUSEHOLD_ID + "/" +
+          entityType + "/" +
+          entityId + "/" +
+          uniqueId() + "_" +
+          safeFileName(file.name);
+
+        const {error:uploadError} = await db.storage
+          .from(STORAGE_BUCKET)
+          .upload(path,file,{
+            contentType:file.type || "application/octet-stream",
+            upsert:false
+          });
+
+        if (uploadError) throw uploadError;
+
+        uploadedPaths.push(path);
+
+        metadata.push({
+          household_id:HOUSEHOLD_ID,
+          entity_type:entityType,
+          entity_id:entityId,
+          file_path:path,
+          original_name:file.name,
+          mime_type:file.type || null,
+          size_bytes:file.size,
+          uploaded_by:user.id
+        });
+      }
+
+      const {error:insertError} = await db
+        .from("attachments")
+        .insert(metadata);
+
+      if (insertError) throw insertError;
+
+      return true;
+
+    } catch (error) {
+
+      if (uploadedPaths.length) {
+        await db.storage
+          .from(STORAGE_BUCKET)
+          .remove(uploadedPaths);
+      }
+
+      alert("Errore negli allegati: " + error.message);
+      return false;
+    }
+  }
+
+  async function loadAttachments(entityType,ids) {
+    if (!ids.length) return {};
+
+    const {data,error} = await db
+      .from("attachments")
+      .select("*")
+      .eq("household_id",HOUSEHOLD_ID)
+      .eq("entity_type",entityType)
+      .in("entity_id",ids);
+
+    if (error) {
+      console.error("Errore allegati:",error.message);
+      return {};
+    }
+
+    const grouped = {};
+
+    for (const attachment of data || []) {
+      const {data:urlData,error:urlError} = await db.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(attachment.file_path,3600);
+
+      if (!urlError && urlData) {
+        attachment.signed_url = urlData.signedUrl;
+      }
+
+      if (!grouped[attachment.entity_id]) {
+        grouped[attachment.entity_id] = [];
+      }
+
+      grouped[attachment.entity_id].push(attachment);
+    }
+
+    return grouped;
+  }
+
+  function renderAttachments(attachments) {
+    if (!attachments || !attachments.length) return "";
+
+    return `
+      <div class="attachment-list">
+        ${attachments.map(file => file.signed_url ? `
+          <a class="attachment-link"
+            href="${safe(file.signed_url)}"
+            target="_blank"
+            rel="noopener noreferrer">
+            📎 ${safe(file.original_name)}
+          </a>
+        ` : `
+          <span class="attachment-link">
+            📎 ${safe(file.original_name)}
+          </span>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  async function deleteEntityAttachments(entityType,entityId) {
+    const {data,error} = await db
+      .from("attachments")
+      .select("id,file_path")
+      .eq("household_id",HOUSEHOLD_ID)
+      .eq("entity_type",entityType)
+      .eq("entity_id",entityId);
+
+    if (error) throw error;
+
+    if (!data || !data.length) return;
+
+    const paths = data.map(file => file.file_path);
+
+    const {error:storageError} = await db.storage
+      .from(STORAGE_BUCKET)
+      .remove(paths);
+
+    if (storageError) throw storageError;
+
+    const {error:metadataError} = await db
+      .from("attachments")
+      .delete()
+      .eq("household_id",HOUSEHOLD_ID)
+      .eq("entity_type",entityType)
+      .eq("entity_id",entityId);
+
+    if (metadataError) throw metadataError;
+  }
+
+  // CARICAMENTO DATI
 
   async function loadData() {
     if (!user) return;
@@ -462,12 +1109,22 @@ footer {
     const [tasks,shopping,reminders] =
       results.map(result => result.data || []);
 
-    renderTasks(tasks);
+    const [taskAttachments,reminderAttachments] =
+      await Promise.all([
+        loadAttachments("task",tasks.map(item => item.id)),
+        loadAttachments("reminder",reminders.map(item => item.id))
+      ]);
+
+    currentData.tasks = tasks;
+    currentData.shopping = shopping;
+    currentData.reminders = reminders;
+
+    renderTasks(tasks,taskAttachments);
     renderShopping(shopping);
-    renderReminders(reminders);
+    renderReminders(reminders,reminderAttachments);
 
     const urgentCount = tasks.filter(
-      t => t.urgent && !t.completed
+      task => task.urgent && !task.completed
     ).length;
 
     if (
@@ -482,13 +1139,33 @@ footer {
 
     previousUrgentCount = urgentCount;
 
+    renderHome();
+
     status(
       "Dati aggiornati · " +
       new Date().toLocaleTimeString("it-IT")
     );
   }
 
-  function renderTasks(items) {
+  // HOME
+
+  function renderHome() {
+    $("homeTasks").textContent =
+      currentData.tasks.filter(item => !item.completed).length;
+
+    $("homeShopping").textContent =
+      currentData.shopping.filter(item => !item.completed).length;
+
+    $("homeReminders").textContent =
+      currentData.reminders.length;
+
+    $("homeShifts").textContent =
+      currentData.shifts.length;
+  }
+
+  // COMPITI
+
+  function renderTasks(items,attachments = {}) {
     const list = $("tasksList");
 
     if (!items.length) {
@@ -502,7 +1179,6 @@ footer {
         ${item.urgent && !item.completed ? "urgent" : ""}">
 
         <input type="checkbox"
-          style="width:20px;margin:0"
           ${item.completed ? "checked" : ""}
           aria-label="Completa compito"
           onchange="window.homeApp.toggle(
@@ -519,15 +1195,58 @@ footer {
           ${item.urgent
             ? '<span class="tag urgent-tag">URGENTE</span>'
             : ""}
+
+          ${renderAttachments(attachments[item.id])}
         </div>
 
         <button class="danger small"
           onclick="window.homeApp.remove(
-            'tasks','${safe(item.id)}'
+            'tasks','${safe(item.id)}','task'
           )">✕</button>
       </div>
     `).join("");
   }
+
+  $("taskForm").addEventListener("submit",async event => {
+    event.preventDefault();
+
+    const title = $("taskTitle").value.trim();
+
+    if (!title) return;
+
+    const files = $("taskFiles").files;
+
+    const {data,error} = await db.from("tasks")
+      .insert({
+        title,
+        assigned_to:$("taskAssigned").value,
+        urgent:$("taskUrgent").checked,
+        completed:false,
+        household_id:HOUSEHOLD_ID
+      })
+      .select()
+      .single();
+
+    if (error) {
+      alert("Errore nel salvataggio: " + error.message);
+      return;
+    }
+
+    if (files.length) {
+      const ok = await uploadAttachments("task",data.id,files);
+
+      if (!ok) {
+        alert("Il compito è stato salvato, ma alcuni allegati non sono stati caricati.");
+      }
+    }
+
+    $("taskForm").reset();
+    $("taskAssigned").value = "Entrambi";
+
+    await loadData();
+  });
+
+  // SPESA
 
   function renderShopping(items) {
     const list = $("shoppingList");
@@ -542,7 +1261,6 @@ footer {
       <div class="item ${item.completed ? "done" : ""}">
 
         <input type="checkbox"
-          style="width:20px;margin:0"
           ${item.completed ? "checked" : ""}
           aria-label="Prodotto acquistato"
           onchange="window.homeApp.toggle(
@@ -561,7 +1279,31 @@ footer {
     `).join("");
   }
 
-  function renderReminders(items) {
+  $("shoppingForm").addEventListener("submit",async event => {
+    event.preventDefault();
+
+    const title = $("shoppingTitle").value.trim();
+
+    if (!title) return;
+
+    const {error} = await db.from("shopping").insert({
+      title,
+      completed:false,
+      household_id:HOUSEHOLD_ID
+    });
+
+    if (error) {
+      alert("Errore: " + error.message);
+      return;
+    }
+
+    $("shoppingForm").reset();
+    await loadData();
+  });
+
+  // PROMEMORIA
+
+  function renderReminders(items,attachments = {}) {
     const list = $("remindersList");
 
     if (!items.length) {
@@ -576,7 +1318,7 @@ footer {
           <strong>${safe(item.title)}</strong>
 
           <div class="meta">
-            ${safe(item.reminder_date)}
+            ${safe(formatDate(item.reminder_date))}
             ${item.reminder_time
               ? " · " + safe(item.reminder_time.slice(0,5))
               : ""}
@@ -585,30 +1327,61 @@ footer {
           ${item.details
             ? `<div class="meta">${safe(item.details)}</div>`
             : ""}
+
+          ${renderAttachments(attachments[item.id])}
         </div>
 
         <button class="danger small"
           onclick="window.homeApp.remove(
-            'reminders','${safe(item.id)}'
+            'reminders','${safe(item.id)}','reminder'
           )">✕</button>
       </div>
     `).join("");
   }
 
-  async function add(table,values) {
-    const {error} = await db.from(table).insert({
-      ...values,
-      household_id:HOUSEHOLD_ID
-    });
+  $("reminderForm").addEventListener(
+    "submit",async event => {
+
+    event.preventDefault();
+
+    const title = $("reminderTitle").value.trim();
+
+    if (!title) return;
+
+    const files = $("reminderFiles").files;
+
+    const {data,error} = await db.from("reminders")
+      .insert({
+        title,
+        reminder_date:$("reminderDate").value,
+        reminder_time:$("reminderTime").value || null,
+        details:$("reminderDetails").value.trim() || null,
+        household_id:HOUSEHOLD_ID
+      })
+      .select()
+      .single();
 
     if (error) {
-      alert("Non sono riuscito a salvare: " + error.message);
-      return false;
+      alert("Errore nel salvataggio: " + error.message);
+      return;
     }
 
+    if (files.length) {
+      const ok = await uploadAttachments(
+        "reminder",data.id,files
+      );
+
+      if (!ok) {
+        alert("Il promemoria è stato salvato, ma alcuni allegati non sono stati caricati.");
+      }
+    }
+
+    $("reminderForm").reset();
+
     await loadData();
-    return true;
-  }
+  });
+
+  // ELIMINAZIONE E COMPLETAMENTO
 
   async function toggle(table,id,column,value) {
     const {error} = await db.from(table)
@@ -623,20 +1396,51 @@ footer {
     }
   }
 
-  async function remove(table,id) {
-    if (!confirm("Vuoi eliminare questo elemento?"))
-      return;
+  async function remove(table,id,entityType = null) {
+    if (!confirm("Vuoi eliminare questo elemento?")) return;
 
-    const {error} = await db.from(table)
-      .delete()
-      .eq("id",id)
-      .eq("household_id",HOUSEHOLD_ID);
+    try {
+      if (entityType) {
+        await deleteEntityAttachments(entityType,id);
+      }
 
-    if (error) {
-      alert("Errore: " + error.message);
-    } else {
+      const {error} = await db.from(table)
+        .delete()
+        .eq("id",id)
+        .eq("household_id",HOUSEHOLD_ID);
+
+      if (error) throw error;
+
       await loadData();
+
+    } catch (error) {
+      alert("Errore durante l'eliminazione: " + error.message);
     }
+  }
+
+  window.homeApp = {
+    toggle,
+    remove,
+    removeShift
+  };
+
+  // NOTIFICHE
+
+  function updateNotificationStatus() {
+    if (!("Notification" in window)) {
+      $("notificationStatus").textContent =
+        "Le notifiche non sono supportate da questo browser.";
+      return;
+    }
+
+    const permission = Notification.permission;
+
+    $("notificationStatus").textContent =
+      permission === "granted"
+        ? "Notifiche abilitate su questo dispositivo."
+        : permission === "denied"
+          ? "Notifiche bloccate. Modifica i permessi del browser."
+          : "Le notifiche non sono ancora state autorizzate.";
   }
 
   function notify(title,body) {
@@ -648,9 +1452,26 @@ footer {
     }
   }
 
-  window.homeApp = {toggle,remove};
+  $("enableNotifications").addEventListener(
+    "click",async () => {
 
-  // ACCESSO
+    if (!("Notification" in window)) {
+      alert("Questo browser non supporta le notifiche.");
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+
+    updateNotificationStatus();
+
+    if (permission === "granted") {
+      alert("Notifiche abilitate su questo dispositivo.");
+    } else {
+      alert("Permesso notifiche non concesso.");
+    }
+  });
+
+  // AUTENTICAZIONE
 
   $("loginForm").addEventListener("submit",async event => {
     event.preventDefault();
@@ -672,10 +1493,13 @@ footer {
     await startApp();
   });
 
-  // USCITA
+  async function logout() {
+    const {error} = await db.auth.signOut();
 
-  $("logout").addEventListener("click",async () => {
-    await db.auth.signOut();
+    if (error) {
+      alert("Errore durante l'uscita: " + error.message);
+      return;
+    }
 
     user = null;
     previousUrgentCount = null;
@@ -691,145 +1515,53 @@ footer {
     }
 
     showLogin();
-  });
+  }
 
-  // NOTIFICHE
-
-  $("enableNotifications").addEventListener(
-    "click",async () => {
-
-    if (!("Notification" in window)) {
-      alert("Questo browser non supporta le notifiche.");
-      return;
-    }
-
-    const permission =
-      await Notification.requestPermission();
-
-    alert(permission === "granted"
-      ? "Notifiche abilitate su questo telefono."
-      : "Permesso notifiche non concesso.");
-  });
-
-  // AGGIUNGI COMPITO
-
-  $("taskForm").addEventListener("submit",async event => {
-    event.preventDefault();
-
-    const title = $("taskTitle").value.trim();
-
-    if (!title) return;
-
-    const ok = await add("tasks",{
-      title,
-      assigned_to:$("taskAssigned").value,
-      urgent:$("taskUrgent").checked,
-      completed:false
-    });
-
-    if (ok) {
-      $("taskForm").reset();
-      $("taskAssigned").value = "Entrambi";
-    }
-  });
-
-  // AGGIUNGI PRODOTTO
-
-  $("shoppingForm").addEventListener("submit",async event => {
-    event.preventDefault();
-
-    const title = $("shoppingTitle").value.trim();
-
-    if (
-      title &&
-      await add("shopping",{title,completed:false})
-    ) {
-      $("shoppingForm").reset();
-    }
-  });
-
-  // AGGIUNGI PROMEMORIA
-
-  $("reminderForm").addEventListener(
-    "submit",async event => {
-
-    event.preventDefault();
-
-    const title = $("reminderTitle").value.trim();
-
-    if (!title) return;
-
-    const ok = await add("reminders",{
-      title,
-      reminder_date:$("reminderDate").value,
-      reminder_time:$("reminderTime").value || null,
-      details:$("reminderDetails").value.trim() || null
-    });
-
-    if (ok) $("reminderForm").reset();
-  });
-
-  // IMPOSTAZIONI NOMI
-
-  $("settingsForm").addEventListener(
-    "submit",async event => {
-
-    event.preventDefault();
-
-    const francesco = $("francescoName").value.trim();
-    const linda = $("lindaName").value.trim();
-
-    if (!francesco || !linda) {
-      $("settingsMessage").textContent =
-        "Inserisci entrambi i nomi.";
-      return;
-    }
-
-    const {error} = await db
-      .from("household_settings")
-      .update({
-        francesco_name:francesco,
-        linda_name:linda,
-        updated_at:new Date().toISOString()
-      })
-      .eq("household_id",HOUSEHOLD_ID);
-
-    if (error) {
-      $("settingsMessage").textContent =
-        "Errore nel salvataggio: " + error.message;
-      return;
-    }
-
-    $("settingsMessage").textContent =
-      "Nomi salvati correttamente!";
-
-    await loadSettings();
-    await loadData();
-  });
+  $("logout").addEventListener("click",logout);
+  $("settingsLogout").addEventListener("click",logout);
 
   // NAVIGAZIONE
 
+  function openTab(tab) {
+    document.querySelectorAll(".tabs button")
+      .forEach(button => {
+        button.classList.toggle(
+          "active",button.dataset.tab === tab
+        );
+      });
+
+    document.querySelectorAll(".section")
+      .forEach(section => {
+        section.classList.toggle(
+          "active",section.id === tab
+        );
+      });
+
+    if (tab === "shifts") {
+      loadShifts();
+    }
+  }
+
   document.querySelectorAll(".tabs button")
     .forEach(button => {
-
-    button.addEventListener("click",() => {
-
-      document.querySelectorAll(".tabs button")
-        .forEach(b => b.classList.remove("active"));
-
-      document.querySelectorAll(".section")
-        .forEach(s => s.classList.remove("active"));
-
-      button.classList.add("active");
-
-      $(button.dataset.tab).classList.add("active");
+      button.addEventListener("click",() => {
+        openTab(button.dataset.tab);
+      });
     });
-  });
 
-  // AVVIO APPLICAZIONE
+  document.querySelectorAll("[data-go]")
+    .forEach(button => {
+      button.addEventListener("click",() => {
+        openTab(button.dataset.go);
+      });
+    });
+
+  // AVVIO
 
   async function startApp() {
     showApp();
+
+    status("Verifica dell'account in corso…");
 
     const {data:member,error:memberError} = await db
       .from("household_members")
@@ -852,26 +1584,59 @@ footer {
 
     if (!settingsOk) return;
 
+    $("shiftDate").value = localDate(new Date());
+
+    updateNotificationStatus();
+
     await loadData();
+    await loadShifts();
 
     if (channel) {
       await db.removeChannel(channel);
     }
 
     channel = db.channel("casa-romito-pindemonte")
+
       .on(
         "postgres_changes",
-        {event:"*",schema:"public"},
-        payload => {
+        {event:"*",schema:"public",table:"tasks"},
+        () => loadData()
+      )
 
-          if (
-            ["tasks","shopping","reminders",
-             "household_settings"].includes(payload.table)
-          ) {
-            loadSettings().then(loadData);
-          }
+      .on(
+        "postgres_changes",
+        {event:"*",schema:"public",table:"shopping"},
+        () => loadData()
+      )
+
+      .on(
+        "postgres_changes",
+        {event:"*",schema:"public",table:"reminders"},
+        () => loadData()
+      )
+
+      .on(
+        "postgres_changes",
+        {event:"*",schema:"public",table:"attachments"},
+        () => loadData()
+      )
+
+      .on(
+        "postgres_changes",
+        {event:"*",schema:"public",table:"work_shifts"},
+        () => loadShifts()
+      )
+
+      .on(
+        "postgres_changes",
+        {event:"*",schema:"public",table:"household_settings"},
+        async () => {
+          await loadSettings();
+          await loadData();
+          await loadShifts();
         }
       )
+
       .subscribe();
 
     if (refreshTimer) {
@@ -881,15 +1646,14 @@ footer {
     refreshTimer = setInterval(async () => {
       await loadSettings();
       await loadData();
+      await loadShifts();
     },15000);
   }
-
-  // RIPRISTINO SESSIONE
 
   db.auth.getSession().then(async ({data,error}) => {
 
     if (error) {
-      status("Errore di accesso: " + error.message);
+      $("loginError").textContent = error.message;
       return;
     }
 
@@ -900,7 +1664,6 @@ footer {
   });
 
   db.auth.onAuthStateChange(event => {
-
     if (event === "SIGNED_OUT") {
       user = null;
       showLogin();
