@@ -167,22 +167,90 @@ footer {
   font-size:12px;
   padding:15px;
 }
-.week-navigation {
+.week-calendar {
+  margin:14px 0 16px;
+  padding:11px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--pale);
+}
+.week-calendar-navigation {
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:8px;
-  margin:12px 0;
+  margin-bottom:11px;
 }
-.week-navigation strong {
-  font-size:13px;
+.week-calendar-navigation button {
+  flex:0 0 auto;
+  min-width:38px;
+  padding:8px 10px;
+  font-size:18px;
+  line-height:1;
+}
+.week-calendar-title {
+  flex:1;
+  min-width:0;
   text-align:center;
+}
+.week-calendar-title strong {
+  display:block;
+  color:var(--dark);
+  font-size:13px;
+  line-height:1.3;
+}
+.week-calendar-title span {
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+  margin-top:2px;
+}
+.week-calendar-days {
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:5px;
+}
+.week-calendar-day {
+  min-width:0;
+  padding:8px 2px;
+  border:1px solid #dcebea;
+  border-radius:10px;
+  background:#fff;
+  text-align:center;
+}
+.week-calendar-day span {
+  display:block;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:650;
+  line-height:1.2;
+}
+.week-calendar-day strong {
+  display:block;
+  margin-top:4px;
+  color:var(--text);
+  font-size:15px;
+  line-height:1.2;
+}
+.week-calendar-day.today {
+  border-color:var(--turquoise);
+  background:var(--turquoise);
+}
+.week-calendar-day.today span,
+.week-calendar-day.today strong {color:#fff}
+.week-calendar-current {
+  display:block;
+  width:auto;
+  margin:10px auto 0;
+  padding:6px 10px;
+  font-size:11px;
 }
 .shift-people-grid {
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:10px;
   align-items:start;
+  margin-top:15px;
 }
 .person-shift-card {
   min-width:0;
@@ -397,16 +465,20 @@ footer {
         I turni di Francesco e Linda, separati e organizzati settimana per settimana.
       </p>
 
-      <div class="week-navigation">
-        <button id="previousWeek" class="secondary small">← Precedente</button>
-        <strong id="weekLabel"></strong>
-        <button id="nextWeek" class="secondary small">Successiva →</button>
+      <div class="week-calendar" aria-label="Calendario settimanale dei turni">
+        <div class="week-calendar-navigation">
+          <button id="previousWeek" type="button" class="secondary" aria-label="Settimana precedente">‹</button>
+          <div class="week-calendar-title">
+            <strong id="weekLabel"></strong>
+            <span id="weekMonthLabel">Calendario settimanale</span>
+          </div>
+          <button id="nextWeek" type="button" class="secondary" aria-label="Settimana successiva">›</button>
+        </div>
+        <div id="weekCalendarDays" class="week-calendar-days"></div>
+        <button id="currentWeek" type="button" class="secondary week-calendar-current">
+          Torna alla settimana attuale
+        </button>
       </div>
-
-      <button id="currentWeek" class="secondary small full">
-        Torna alla settimana attuale
-      </button>
-    </div>
 
     <div class="shift-people-grid">
       <article class="person-shift-card linda">
@@ -418,6 +490,7 @@ footer {
         <div class="person-shift-heading" id="francescoShiftTitle">Francesco</div>
         <div class="person-shift-list" id="francescoShifts"></div>
       </article>
+    </div>
     </div>
 
     <div id="shiftEditor" class="shift-editor-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="shiftEditorTitle">
@@ -585,7 +658,7 @@ footer {
     <div class="panel">
       <h3>ℹ️ Informazioni sull'app</h3>
       <p><strong>Casa Romito/Pindemonte</strong></p>
-      <p class="muted">Versione 2.3</p>
+      <p class="muted">Versione 2.4</p>
       <p class="muted">Applicazione privata per l'organizzazione familiare.</p>
       <p class="muted">Dati sincronizzati attraverso Supabase.</p>
     </div>
@@ -777,7 +850,6 @@ footer {
 
   function renderWeekLabel() {
     const week = getWeekRange();
-
     const options = {day:"numeric",month:"short"};
 
     $("weekLabel").textContent =
@@ -788,6 +860,26 @@ footer {
         month:"long",
         year:"numeric"
       });
+
+    $("weekMonthLabel").textContent =
+      week.monday.toLocaleDateString("it-IT",{
+        month:"long",year:"numeric"
+      });
+
+    const today = localDate(new Date());
+    $("weekCalendarDays").innerHTML = WEEK_DAYS.map(day => {
+      const date = new Date(week.monday);
+      date.setDate(date.getDate() + day.offset);
+      const dateValue = localDate(date);
+      const isToday = dateValue === today;
+
+      return `
+        <div class="week-calendar-day${isToday ? " today" : ""}"${isToday ? ' aria-current="date"' : ""}>
+          <span>${day.short}</span>
+          <strong>${date.getDate()}</strong>
+        </div>
+      `;
+    }).join("");
   }
 
   async function loadShifts() {
