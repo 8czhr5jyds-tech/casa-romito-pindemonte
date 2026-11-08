@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -239,6 +240,41 @@ footer {
   .tabs {grid-template-columns:repeat(6,1fr)}
   .tabs button {font-size:14px}
 }
+.child-grid,.shift-grid {
+  display:grid;
+  grid-template-columns:1fr;
+  gap:12px;
+}
+.child-card,.shift-person-card {
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:13px;
+  background:#fff;
+  min-width:0;
+}
+.child-card.gabriele {background:linear-gradient(145deg,#eff8ff,#fff);border-color:#cfe5fb}
+.child-card.rebecca {background:linear-gradient(145deg,#fff1f7,#fff);border-color:#f4d2e2}
+.child-heading,.shift-heading {display:flex;align-items:center;gap:9px;margin-bottom:10px;font-weight:750;font-size:17px}
+.child-heading .avatar {width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#fff;font-size:22px}
+.child-entry {display:flex;align-items:flex-start;gap:8px;padding:10px 2px;border-bottom:1px solid #e9f0ef}
+.child-entry:last-child {border-bottom:0}
+.child-entry .details {flex:1;min-width:0}
+.child-entry .meta {line-height:1.45}
+.child-entry .entry-actions {display:flex;gap:5px;align-items:center}
+.child-entry .entry-actions button {padding:6px 8px}
+.shift-days {display:grid;gap:6px}
+.shift-day {display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:7px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:11px;background:#fff}
+.shift-day .day-name {font-size:12px;color:var(--muted);font-weight:700}
+.shift-day .shift-value {font-size:13px;font-weight:650;overflow-wrap:anywhere}
+.shift-day .shift-edit {padding:7px 9px;background:var(--pale);color:var(--dark)}
+.child-add-grid {display:grid;grid-template-columns:1fr;gap:8px}
+.child-filter {display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.child-filter button {padding:7px 10px;font-size:12px;background:var(--pale);color:var(--dark)}
+.child-filter button.active {background:var(--turquoise);color:#fff}
+@media(min-width:680px) {
+  .child-grid,.shift-grid {grid-template-columns:1fr 1fr}
+  .child-add-grid {grid-template-columns:1fr 1fr}
+}
 </style>
 </head>
 
@@ -283,6 +319,7 @@ footer {
   <nav class="tabs">
     <button class="active" data-tab="home">🏡 Home</button>
     <button data-tab="shifts">🗓️ Turni</button>
+    <button data-tab="children">👧 Figli</button>
     <button data-tab="tasks">🧹 Compiti</button>
     <button data-tab="shopping">🛒 Spesa</button>
     <button data-tab="expenses">💶 Da pagare</button>
@@ -319,53 +356,95 @@ footer {
   <!-- TURNI SETTIMANALI -->
   <section id="shifts" class="section">
     <div class="panel">
-      <h2>🗓️ Turni lavorativi settimanali</h2>
-      <p class="muted">
-        I turni di Francesco e Linda, separati e organizzati settimana per settimana.
-      </p>
-
+      <h2>🗓️ Turni della settimana</h2>
+      <p class="muted">Linda e Francesco, ciascuno nella propria scheda settimanale.</p>
       <div class="week-navigation">
-        <button id="previousWeek" class="secondary small">← Precedente</button>
+        <button id="previousWeek" class="secondary small">←</button>
         <strong id="weekLabel"></strong>
-        <button id="nextWeek" class="secondary small">Successiva →</button>
+        <button id="nextWeek" class="secondary small">→</button>
       </div>
-
-      <button id="currentWeek" class="secondary small full">
-        Torna alla settimana attuale
-      </button>
+      <button id="currentWeek" class="secondary small full">Torna alla settimana attuale</button>
     </div>
-
     <div class="panel">
-      <h3>＋ Aggiungi turno lavorativo</h3>
-
+      <h3 id="shiftFormHeading">＋ Aggiungi turno</h3>
       <form id="shiftForm">
+        <input type="hidden" id="shiftEditId">
         <label class="form-label" for="shiftPerson">Persona</label>
         <select id="shiftPerson" required></select>
-
         <label class="form-label" for="shiftDate">Giorno</label>
         <input id="shiftDate" type="date" required>
-
-        <div class="row">
-          <div style="flex:1">
-            <label class="form-label" for="shiftStart">Inizio</label>
-            <input id="shiftStart" type="time" required>
-          </div>
-          <div style="flex:1">
-            <label class="form-label" for="shiftEnd">Fine</label>
-            <input id="shiftEnd" type="time" required>
-          </div>
+        <label class="form-label" for="shiftType">Turno</label>
+        <select id="shiftType" required>
+          <option value="morning">Mattina</option>
+          <option value="evening">Sera</option>
+          <option value="custom" selected>Personalizzati</option>
+          <option value="free">Libero</option>
+        </select>
+        <div id="customShiftTimes" class="row">
+          <div style="flex:1"><label class="form-label" for="shiftStart">Inizio</label><input id="shiftStart" type="time"></div>
+          <div style="flex:1"><label class="form-label" for="shiftEnd">Fine</label><input id="shiftEnd" type="time"></div>
         </div>
-
         <textarea id="shiftNotes" placeholder="Note facoltative"></textarea>
-        <button class="full" type="submit">＋ Salva turno</button>
+        <div class="row">
+          <button class="full" type="submit" id="shiftSubmit">＋ Salva turno</button>
+          <button class="secondary hidden" type="button" id="cancelShiftEdit">Annulla</button>
+        </div>
       </form>
     </div>
+    <div class="shift-grid">
+      <div class="shift-person-card">
+        <div class="shift-heading" style="color:#087f7b">🌸 <span id="lindaShiftTitle">Linda</span></div>
+        <div class="shift-days" id="lindaShifts"></div>
+      </div>
+      <div class="shift-person-card">
+        <div class="shift-heading" style="color:#267eb7">💠 <span id="francescoShiftTitle">Francesco</span></div>
+        <div class="shift-days" id="francescoShifts"></div>
+      </div>
+    </div>
+  </section>
 
-    <div class="card">
-      <div class="person-title" id="francescoShiftTitle">Francesco</div>
-      <div id="francescoShifts"></div>
-      <div class="person-title" id="lindaShiftTitle">Linda</div>
-      <div id="lindaShifts"></div>
+  <!-- FIGLI -->
+  <section id="children" class="section">
+    <div class="panel">
+      <h2>👨‍👩‍👧‍👦 I nostri figli</h2>
+      <p class="muted">La settimana di Gabriele e Rebecca, con compiti, necessità, attività, spese annotate e note personali.</p>
+      <div class="week-navigation">
+        <button id="childrenPreviousWeek" class="secondary small">←</button>
+        <strong id="childrenWeekLabel"></strong>
+        <button id="childrenNextWeek" class="secondary small">→</button>
+      </div>
+      <button id="childrenCurrentWeek" class="secondary small full">Torna alla settimana attuale</button>
+    </div>
+    <div class="panel">
+      <h3>＋ Aggiungi alla lista</h3>
+      <form id="childEntryForm">
+        <div class="child-add-grid">
+          <div><label class="form-label" for="childName">Figlio</label><select id="childName"><option>Gabriele</option><option>Rebecca</option></select></div>
+          <div><label class="form-label" for="childEntryType">Categoria</label><select id="childEntryType"><option value="task">Compito</option><option value="need">Cosa serve</option><option value="activity">Attività / impegno</option><option value="expense">Spesa da annotare</option><option value="note">Nota</option></select></div>
+          <div><label class="form-label" for="childEntryTitle">Cosa vuoi aggiungere?</label><input id="childEntryTitle" placeholder="Scrivi una voce…" required></div>
+          <div><label class="form-label" for="childEntryDate">Data (facoltativa)</label><input id="childEntryDate" type="date"></div>
+          <div><label class="form-label" for="childEntryTime">Orario (facoltativo)</label><input id="childEntryTime" type="time"></div>
+          <div><label class="form-label" for="childEntryDetails">Dettagli (facoltativi)</label><input id="childEntryDetails" placeholder="Aggiungi una nota…"></div>
+        </div>
+        <p class="muted">Le spese dei figli si possono annotare senza importi né totali.</p>
+        <button class="full" type="submit">＋ Aggiungi alla lista</button>
+      </form>
+    </div>
+    <div class="child-grid">
+      <div class="child-card gabriele">
+        <div class="child-heading"><span class="avatar">👦🏻</span> Gabriele</div>
+        <div class="child-filter" data-child-filter="Gabriele">
+          <button class="active" data-filter="all">Tutto</button><button data-filter="task">Compiti</button><button data-filter="need">Cose da fare</button><button data-filter="activity">Attività</button><button data-filter="expense">Spese</button><button data-filter="note">Note</button>
+        </div>
+        <div id="gabrieleEntries"></div>
+      </div>
+      <div class="child-card rebecca">
+        <div class="child-heading"><span class="avatar">👧🏻</span> Rebecca</div>
+        <div class="child-filter" data-child-filter="Rebecca">
+          <button class="active" data-filter="all">Tutto</button><button data-filter="task">Compiti</button><button data-filter="need">Cose da fare</button><button data-filter="activity">Attività</button><button data-filter="expense">Spese</button><button data-filter="note">Note</button>
+        </div>
+        <div id="rebeccaEntries"></div>
+      </div>
     </div>
   </section>
 
@@ -377,17 +456,6 @@ footer {
       <form id="taskForm">
         <input id="taskTitle" placeholder="Cosa c'è da fare?" required>
         <select id="taskAssigned"></select>
-
-        <label class="form-label" for="taskReminderAt">Quando vuoi svolgere il compito?</label>
-        <input id="taskReminderAt" type="datetime-local">
-        <label class="form-label" for="taskReminderOffset">Quando vuoi ricevere il promemoria?</label>
-        <select id="taskReminderOffset">
-          <option value="0">All'orario stabilito</option>
-          <option value="15">15 minuti prima</option>
-          <option value="30">30 minuti prima</option>
-          <option value="60">1 ora prima</option>
-        </select>
-        <p class="muted" style="font-size:12px;margin-top:-4px">Imposta giorno e ora per ricevere una notifica sul telefono.</p>
 
         <label class="muted">
           <input id="taskUrgent" type="checkbox">
@@ -515,7 +583,7 @@ footer {
     <div class="panel">
       <h3>ℹ️ Informazioni sull'app</h3>
       <p><strong>Casa Romito/Pindemonte</strong></p>
-      <p class="muted">Versione 2.1</p>
+      <p class="muted">Versione 2.3</p>
       <p class="muted">Applicazione privata per l'organizzazione familiare.</p>
       <p class="muted">Dati sincronizzati attraverso Supabase.</p>
     </div>
@@ -525,7 +593,7 @@ footer {
 </main>
 
 <footer>
-  Casa Romito/Pindemonte · Spazio privato di famiglia
+  Casa Romito/Pindemonte · Versione 2.3
 </footer>
 
 <script>
@@ -542,11 +610,6 @@ footer {
     "be8f07ee-b389-4bd8-9a9e-6de9c672eb48";
 
   const STORAGE_BUCKET = "household-files";
-
-  // CHIAVE PUBBLICA VAPID PER LE NOTIFICHE PUSH
-  const VAPID_PUBLIC_KEY =
-    "BN26id35mPhkakPdmJvKBw-NjqKMHuOwo8DNJ210OLIvP9pTZwCkRXLkAeBwl4EYyXqCGCbjMkeJmLly0lCEW-Y";
-
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
   const db = window.supabase.createClient(
@@ -559,6 +622,7 @@ footer {
   let user = null;
   let channel = null;
   let refreshTimer = null;
+  let previousUrgentCount = null;
   let weekOffset = 0;
 
   let settings = {
@@ -572,7 +636,8 @@ footer {
     tasks: [],
     shopping: [],
     expenses: [],
-    shifts: []
+    shifts: [],
+    childEntries: []
   };
 
   const safe = value =>
@@ -755,87 +820,101 @@ footer {
     renderHome();
   }
 
+  function shiftLabel(shift) {
+    if (!shift) return "Da definire";
+    if (shift.shift_type === "morning") return "Mattina";
+    if (shift.shift_type === "evening") return "Sera";
+    if (shift.shift_type === "free") return "Libero";
+    return `${(shift.start_time || "").slice(0,5)} – ${(shift.end_time || "").slice(0,5)}`;
+  }
+
   function renderShifts() {
+    const week = getWeekRange();
     const people = [
-      {name:settings.francesco_name,target:"francescoShifts"},
-      {name:settings.linda_name,target:"lindaShifts"}
+      {name:settings.linda_name,target:"lindaShifts"},
+      {name:settings.francesco_name,target:"francescoShifts"}
     ];
-
+    const dayNames = ["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
     people.forEach(person => {
-      const shifts = currentData.shifts.filter(
-        shift => assignedName(shift.person) === person.name
-      );
-
       const list = $(person.target);
-
-      if (!shifts.length) {
-        list.innerHTML = '<p class="muted">Nessun turno questa settimana.</p>';
-        return;
-      }
-
-      list.innerHTML = shifts.map(shift => `
-        <div class="shift-card">
-          <div class="details">
-            <strong>${safe(formatDate(shift.shift_date))}</strong>
-            <div class="meta">
-              ${safe((shift.start_time || "").slice(0,5))}
-              –
-              ${safe((shift.end_time || "").slice(0,5))}
-            </div>
-            ${shift.notes ? `<div class="meta">${safe(shift.notes)}</div>` : ""}
-          </div>
-          <button class="danger small"
-            onclick="window.homeApp.removeShift('${safe(shift.id)}')">✕</button>
-        </div>
-      `).join("");
+      list.innerHTML = Array.from({length:7},(_,index) => {
+        const date = new Date(week.monday);
+        date.setDate(date.getDate()+index);
+        const iso = localDate(date);
+        const shift = currentData.shifts.find(item => item.person === person.name && item.shift_date === iso);
+        const value = shiftLabel(shift);
+        return `<div class="shift-day">
+          <div class="day-name">${dayNames[index]}<br><strong>${date.getDate()}</strong></div>
+          <div class="shift-value">${safe(value)}${shift?.notes ? `<div class="meta">${safe(shift.notes)}</div>` : ""}</div>
+          <button class="shift-edit" aria-label="Modifica turno" onclick="window.homeApp.editShift('${shift ? safe(shift.id) : ""}','${iso}','${safe(person.name)}')">›</button>
+        </div>`;
+      }).join("");
     });
   }
 
-  $("previousWeek").addEventListener("click",async () => {
-    weekOffset--;
-    await loadShifts();
-  });
+  function resetShiftForm() {
+    $("shiftForm").reset();
+    $("shiftEditId").value = "";
+    $("shiftType").value = "custom";
+    $("shiftDate").value = localDate(new Date());
+    $("shiftFormHeading").textContent = "＋ Aggiungi turno";
+    $("shiftSubmit").textContent = "＋ Salva turno";
+    $("cancelShiftEdit").classList.add("hidden");
+    updateShiftTimeFields();
+  }
 
-  $("nextWeek").addEventListener("click",async () => {
-    weekOffset++;
-    await loadShifts();
-  });
+  function editShift(id,date,person) {
+    const shift = id ? currentData.shifts.find(item => item.id === id) : null;
+    $("shiftEditId").value = id || "";
+    $("shiftPerson").value = person;
+    $("shiftDate").value = date;
+    $("shiftType").value = shift?.shift_type || "custom";
+    $("shiftStart").value = shift?.start_time?.slice(0,5) || "";
+    $("shiftEnd").value = shift?.end_time?.slice(0,5) || "";
+    $("shiftNotes").value = shift?.notes || "";
+    $("shiftFormHeading").textContent = "✎ Modifica turno";
+    $("shiftSubmit").textContent = "Salva modifiche";
+    $("cancelShiftEdit").classList.remove("hidden");
+    updateShiftTimeFields();
+    $("shiftFormHeading").scrollIntoView({behavior:"smooth",block:"center"});
+  }
 
-  $("currentWeek").addEventListener("click",async () => {
-    weekOffset = 0;
-    await loadShifts();
-  });
+  $("previousWeek").addEventListener("click",async () => { weekOffset--; await loadShifts(); });
+  $("nextWeek").addEventListener("click",async () => { weekOffset++; await loadShifts(); });
+  $("currentWeek").addEventListener("click",async () => { weekOffset = 0; await loadShifts(); });
+
+  function updateShiftTimeFields() {
+    const isCustom = $("shiftType").value === "custom";
+    $("customShiftTimes").classList.toggle("hidden",!isCustom);
+    $("shiftStart").required = isCustom;
+    $("shiftEnd").required = isCustom;
+  }
+  $("shiftType").addEventListener("change",updateShiftTimeFields);
+  $("cancelShiftEdit").addEventListener("click",resetShiftForm);
+  updateShiftTimeFields();
 
   $("shiftForm").addEventListener("submit",async event => {
     event.preventDefault();
-
     const date = $("shiftDate").value;
-    const start = $("shiftStart").value;
-    const end = $("shiftEnd").value;
-
-    if (!date || !start || !end) return;
-
-    if (end <= start) {
-      alert("L'orario di fine deve essere successivo all'inizio.");
-      return;
+    const shiftType = $("shiftType").value;
+    const start = shiftType === "custom" ? $("shiftStart").value : null;
+    const end = shiftType === "custom" ? $("shiftEnd").value : null;
+    if (!date) return;
+    if (shiftType === "custom" && (!start || !end)) return;
+    if (shiftType === "custom" && end <= start) {
+      alert("L'orario di fine deve essere successivo all'inizio."); return;
     }
-
-    const {error} = await db.from("work_shifts").insert({
-      household_id:HOUSEHOLD_ID,
-      person:$("shiftPerson").value,
-      shift_date:date,
-      start_time:start,
-      end_time:end,
-      notes:$("shiftNotes").value.trim() || null
-    });
-
-    if (error) {
-      alert("Errore nel salvataggio del turno: " + error.message);
-      return;
-    }
-
-    $("shiftForm").reset();
-    $("shiftDate").value = localDate(new Date());
+    const payload = {
+      person:$("shiftPerson").value, shift_date:date, shift_type:shiftType,
+      start_time:start, end_time:end, notes:$("shiftNotes").value.trim() || null
+    };
+    const editId = $("shiftEditId").value;
+    const query = editId
+      ? db.from("work_shifts").update(payload).eq("id",editId).eq("household_id",HOUSEHOLD_ID)
+      : db.from("work_shifts").insert({...payload,household_id:HOUSEHOLD_ID});
+    const {error} = await query;
+    if (error) { alert("Errore nel salvataggio del turno: " + error.message); return; }
+    resetShiftForm();
     weekOffset = 0;
     await loadShifts();
   });
@@ -1049,10 +1128,123 @@ footer {
     renderShopping(shopping);
     renderExpenses(expenses,expenseAttachments);
 
+    const urgentCount = tasks.filter(
+      task => task.urgent && !task.completed
+    ).length;
+
+    if (
+      previousUrgentCount !== null &&
+      urgentCount > previousUrgentCount
+    ) {
+      notify(
+        "Nuovo compito urgente",
+        "È stato aggiunto un compito urgente alla lista di casa."
+      );
+    }
+
+    previousUrgentCount = urgentCount;
+
     renderHome();
 
     status("Dati aggiornati · " + new Date().toLocaleTimeString("it-IT"));
   }
+
+  // FIGLI: ELEMENTI CONDIVISI E SINCRONIZZATI
+  let childFilters = {Gabriele:"all",Rebecca:"all"};
+  const childTypeLabels = {task:"Compito",need:"Cosa serve",activity:"Attività",expense:"Spesa annotata",note:"Nota"};
+
+  async function loadChildEntries() {
+    const {data,error} = await db.from("child_entries")
+      .select("*").eq("household_id",HOUSEHOLD_ID)
+      .order("entry_date",{ascending:true,nullsFirst:false})
+      .order("created_at",{ascending:false});
+    if (error) { status("Errore nel caricamento della sezione Figli: " + error.message); return; }
+    currentData.childEntries = data || [];
+    renderChildEntries();
+  }
+
+  function renderChildEntries() {
+    ["Gabriele","Rebecca"].forEach(child => {
+      const target = child === "Gabriele" ? "gabrieleEntries" : "rebeccaEntries";
+      const week = getWeekRange();
+      let items = currentData.childEntries.filter(item =>
+        item.child_name === child &&
+        (!item.entry_date || (item.entry_date >= week.start && item.entry_date <= week.end))
+      );
+      const filter = childFilters[child] || "all";
+      if (filter !== "all") items = items.filter(item => item.entry_type === filter);
+      if (!items.length) {
+        $(target).innerHTML = '<p class="muted">Nessuna voce in questa lista. Puoi aggiungerla qui sopra.</p>';
+        return;
+      }
+      $(target).innerHTML = items.map(item => `
+        <div class="child-entry ${item.completed ? "done" : ""}">
+          <input type="checkbox" ${item.completed ? "checked" : ""} aria-label="Completa voce"
+            onchange="window.homeApp.toggleChildEntry('${safe(item.id)}',this.checked)">
+          <div class="details">
+            <strong>${safe(item.title)}</strong>
+            <div class="meta">${safe(childTypeLabels[item.entry_type] || item.entry_type)}${item.entry_date ? " · " + safe(formatDate(item.entry_date)) : ""}${item.entry_time ? " · " + safe(item.entry_time.slice(0,5)) : ""}</div>
+            ${item.details ? `<div class="meta">${safe(item.details)}</div>` : ""}
+          </div>
+          <div class="entry-actions"><button class="danger small" aria-label="Elimina" onclick="window.homeApp.removeChildEntry('${safe(item.id)}')">✕</button></div>
+        </div>`).join("");
+    });
+  }
+
+  document.querySelectorAll("[data-child-filter]").forEach(group => {
+    group.addEventListener("click",event => {
+      const button = event.target.closest("button[data-filter]");
+      if (!button) return;
+      const child = group.dataset.childFilter;
+      childFilters[child] = button.dataset.filter;
+      group.querySelectorAll("button").forEach(item => item.classList.toggle("active",item === button));
+      renderChildEntries();
+    });
+  });
+
+  $("childEntryForm").addEventListener("submit",async event => {
+    event.preventDefault();
+    const title = $("childEntryTitle").value.trim();
+    if (!title) return;
+    const payload = {
+      household_id:HOUSEHOLD_ID,
+      child_name:$("childName").value,
+      entry_type:$("childEntryType").value,
+      title,
+      entry_date:$("childEntryDate").value || null,
+      entry_time:$("childEntryTime").value || null,
+      details:$("childEntryDetails").value.trim() || null,
+      completed:false,
+      created_by:user.id
+    };
+    const {error} = await db.from("child_entries").insert(payload);
+    if (error) { alert("Errore nel salvataggio: " + error.message); return; }
+    $("childEntryForm").reset();
+    await loadChildEntries();
+  });
+
+  async function toggleChildEntry(id,completed) {
+    const {error} = await db.from("child_entries").update({completed})
+      .eq("id",id).eq("household_id",HOUSEHOLD_ID);
+    if (error) { alert("Errore: " + error.message); return; }
+    await loadChildEntries();
+  }
+
+  async function removeChildEntry(id) {
+    if (!confirm("Vuoi eliminare questa voce?")) return;
+    const {error} = await db.from("child_entries").delete()
+      .eq("id",id).eq("household_id",HOUSEHOLD_ID);
+    if (error) { alert("Errore: " + error.message); return; }
+    await loadChildEntries();
+  }
+
+  function updateChildrenWeekLabel() {
+    const week = getWeekRange();
+    $("childrenWeekLabel").textContent = week.monday.toLocaleDateString("it-IT",{day:"numeric",month:"short"}) + " – " + week.sunday.toLocaleDateString("it-IT",{day:"numeric",month:"long",year:"numeric"});
+  }
+  $("childrenPreviousWeek").addEventListener("click",() => { weekOffset--; updateChildrenWeekLabel(); loadChildEntries(); });
+  $("childrenNextWeek").addEventListener("click",() => { weekOffset++; updateChildrenWeekLabel(); loadChildEntries(); });
+  $("childrenCurrentWeek").addEventListener("click",() => { weekOffset=0; updateChildrenWeekLabel(); loadChildEntries(); });
 
   // HOME
   function renderHome() {
@@ -1094,7 +1286,6 @@ footer {
           <strong>${safe(item.title)}</strong>
           <span class="tag">${safe(assignedName(item.assigned_to))}</span>
           ${item.urgent ? '<span class="tag urgent-tag">URGENTE</span>' : ""}
-          ${item.reminder_at ? `<span class="tag">🔔 ${new Date(item.reminder_at).toLocaleString("it-IT", {dateStyle:"short",timeStyle:"short"})}${item.reminder_sent_at ? " · Promemoria inviato" : ""}</span>` : ""}
           ${renderAttachments(attachments[item.id])}
         </div>
 
@@ -1111,21 +1302,6 @@ footer {
     if (!title) return;
 
     const files = $("taskFiles").files;
-    const reminderValue = $("taskReminderAt").value;
-    let reminderAt = null;
-
-    if (reminderValue) {
-      const localReminderDate = new Date(reminderValue);
-      if (Number.isNaN(localReminderDate.getTime())) {
-        alert("Controlla la data e l'orario del promemoria.");
-        return;
-      }
-      if (localReminderDate.getTime() <= Date.now()) {
-        alert("Scegli un giorno e un orario futuri per il promemoria.");
-        return;
-      }
-      reminderAt = localReminderDate.toISOString();
-    }
 
     const {data,error} = await db.from("tasks")
       .insert({
@@ -1133,9 +1309,7 @@ footer {
         assigned_to:$("taskAssigned").value,
         urgent:$("taskUrgent").checked,
         completed:false,
-        household_id:HOUSEHOLD_ID,
-        reminder_at:reminderAt,
-        reminder_offset_minutes:Number($("taskReminderOffset").value || 0)
+        household_id:HOUSEHOLD_ID
       })
       .select()
       .single();
@@ -1151,7 +1325,6 @@ footer {
 
     $("taskForm").reset();
     $("taskAssigned").value = "Entrambi";
-    $("taskReminderOffset").value = "0";
     await loadData();
   });
 
@@ -1344,10 +1517,13 @@ footer {
   window.homeApp = {
     toggle,
     remove,
-    removeShift
+    removeShift,
+    editShift,
+    toggleChildEntry,
+    removeChildEntry
   };
 
-  // NOTIFICHE PUSH
+  // NOTIFICHE
   function updateNotificationStatus() {
     if (!("Notification" in window)) {
       $("notificationStatus").textContent =
@@ -1359,157 +1535,36 @@ footer {
 
     $("notificationStatus").textContent =
       permission === "granted"
-        ? "Permesso notifiche concesso. Registrazione push in corso o attiva."
+        ? "Notifiche abilitate su questo dispositivo."
         : permission === "denied"
-          ? "Notifiche bloccate. Modifica i permessi del dispositivo."
+          ? "Notifiche bloccate. Modifica i permessi del browser."
           : "Le notifiche non sono ancora state autorizzate.";
   }
 
-  function urlBase64ToUint8Array(base64String) {
-    const padding = "=".repeat((4 - base64String.length % 4) % 4);
-
-    const base64 = (base64String + padding)
-      .replace(/-/g, "+")
-      .replace(/_/g, "/");
-
-    const rawData = atob(base64);
-
-    return Uint8Array.from(
-      rawData,
-      char => char.charCodeAt(0)
-    );
+  function notify(title,body) {
+    if (
+      "Notification" in window &&
+      Notification.permission === "granted"
+    ) {
+      new Notification(title,{body});
+    }
   }
 
-  async function registerPushNotifications() {
-    if (!user) {
-      throw new Error("Accedi prima di registrare questo dispositivo.");
-    }
-
-    if (
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window)
-    ) {
-      throw new Error(
-        "Questo dispositivo o browser non supporta le notifiche push."
-      );
-    }
-
+  $("enableNotifications").addEventListener("click",async () => {
     if (!("Notification" in window)) {
-      throw new Error("Le notifiche non sono supportate.");
+      alert("Questo browser non supporta le notifiche.");
+      return;
     }
 
-    if (!window.isSecureContext) {
-      throw new Error(
-        "Le notifiche richiedono una connessione HTTPS."
-      );
+    const permission = await Notification.requestPermission();
+    updateNotificationStatus();
+
+    if (permission === "granted") {
+      alert("Notifiche abilitate su questo dispositivo.");
+    } else {
+      alert("Permesso notifiche non concesso.");
     }
-
-    if (Notification.permission !== "granted") {
-      throw new Error(
-        "Prima devi concedere il permesso per le notifiche."
-      );
-    }
-
-    const registration =
-      await navigator.serviceWorker.register("./sw.js", {
-        scope: "./"
-      });
-
-    await navigator.serviceWorker.ready;
-
-    let subscription =
-      await registration.pushManager.getSubscription();
-
-    if (!subscription) {
-      subscription =
-        await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey:
-            urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
-    }
-
-    const json = subscription.toJSON();
-
-    if (
-      !json.endpoint ||
-      !json.keys ||
-      !json.keys.p256dh ||
-      !json.keys.auth
-    ) {
-      throw new Error(
-        "Il dispositivo non ha restituito i dati necessari per le notifiche."
-      );
-    }
-
-    const { error } = await db
-      .from("web_push_subscriptions")
-      .upsert({
-        household_id: HOUSEHOLD_ID,
-        user_id: user.id,
-        endpoint: json.endpoint,
-        p256dh: json.keys.p256dh,
-        auth: json.keys.auth,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: "endpoint"
-      });
-
-    if (error) throw error;
-
-    return true;
-  }
-
-  $("enableNotifications").addEventListener(
-    "click",
-    async () => {
-      if (!("Notification" in window)) {
-        alert("Questo browser non supporta le notifiche.");
-        return;
-      }
-
-      if (!user) {
-        alert("Accedi prima di attivare le notifiche.");
-        return;
-      }
-
-      try {
-        const permission =
-          await Notification.requestPermission();
-
-        updateNotificationStatus();
-
-        if (permission !== "granted") {
-          alert(
-            "Permesso notifiche non concesso. " +
-            "Controlla le impostazioni del dispositivo."
-          );
-          return;
-        }
-
-        await registerPushNotifications();
-
-        $("notificationStatus").textContent =
-          "Notifiche push attive e dispositivo registrato.";
-
-        alert(
-          "Perfetto! Questo dispositivo è registrato " +
-          "per ricevere le notifiche di Casa."
-        );
-
-      } catch (error) {
-        console.error("Errore notifiche push:", error);
-
-        $("notificationStatus").textContent =
-          "Non è stato possibile completare la registrazione push.";
-
-        alert(
-          "Non è stato possibile attivare le notifiche: " +
-          error.message
-        );
-      }
-    }
-  );
+  });
 
   // AUTENTICAZIONE
   $("loginForm").addEventListener("submit",async event => {
@@ -1541,6 +1596,7 @@ footer {
     }
 
     user = null;
+    previousUrgentCount = null;
 
     if (channel) {
       await db.removeChannel(channel);
@@ -1568,9 +1624,8 @@ footer {
       section.classList.toggle("active",section.id === tab);
     });
 
-    if (tab === "shifts") {
-      loadShifts();
-    }
+    if (tab === "shifts") loadShifts();
+    if (tab === "children") { updateChildrenWeekLabel(); loadChildEntries(); }
   }
 
   document.querySelectorAll(".tabs button").forEach(button => {
@@ -1600,32 +1655,13 @@ footer {
     const settingsOk = await loadSettings();
     if (!settingsOk) return;
 
-    $("shiftDate").value = localDate(new Date());
+    resetShiftForm();
     updateNotificationStatus();
-
-    // Se l'utente aveva già autorizzato le notifiche,
-    // registra o aggiorna automaticamente il dispositivo.
-    if (
-      "Notification" in window &&
-      Notification.permission === "granted" &&
-      "serviceWorker" in navigator &&
-      "PushManager" in window
-    ) {
-      try {
-        await registerPushNotifications();
-
-        $("notificationStatus").textContent =
-          "Notifiche push attive e dispositivo registrato.";
-      } catch (error) {
-        console.error(
-          "Aggiornamento registrazione push non riuscito:",
-          error
-        );
-      }
-    }
 
     await loadData();
     await loadShifts();
+    updateChildrenWeekLabel();
+    await loadChildEntries();
 
     if (channel) {
       await db.removeChannel(channel);
@@ -1665,6 +1701,12 @@ footer {
 
       .on(
         "postgres_changes",
+        {event:"*",schema:"public",table:"child_entries"},
+        () => loadChildEntries()
+      )
+
+      .on(
+        "postgres_changes",
         {event:"*",schema:"public",table:"household_settings"},
         async () => {
           await loadSettings();
@@ -1683,6 +1725,7 @@ footer {
       await loadSettings();
       await loadData();
       await loadShifts();
+      await loadChildEntries();
     },15000);
   }
 
