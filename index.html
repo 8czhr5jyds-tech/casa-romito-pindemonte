@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#16b8b0">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Casa">
 <link rel="manifest" href="./manifest.webmanifest">
@@ -94,15 +95,16 @@ button:disabled {opacity:.5;cursor:not-allowed}
 .row input {flex:1}
 .tabs {
   display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:7px;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:6px;
   margin:14px 0;
 }
 .tabs button {
   background:white;
   color:var(--dark);
-  padding:11px 5px;
-  font-size:13px;
+  padding:10px 3px;
+  font-size:11px;
+  line-height:1.2;
 }
 .tabs button.active {
   background:var(--turquoise);
@@ -236,15 +238,28 @@ footer {
   font-size:12px;
   margin:5px 0;
 }
-@media(min-width:600px) {
-  .tabs {grid-template-columns:repeat(6,1fr)}
-  .tabs button {font-size:14px}
+@media(min-width:680px) {
+  .tabs {grid-template-columns:repeat(7,minmax(0,1fr))}
+  .tabs button {font-size:13px;padding:11px 5px}
 }
 .child-grid,.shift-grid {
   display:grid;
   grid-template-columns:1fr;
   gap:12px;
 }
+.shift-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.shift-person-card {padding:8px}
+.shift-heading {font-size:14px;gap:5px;white-space:nowrap}
+.shift-day {grid-template-columns:32px minmax(0,1fr) auto;gap:4px;padding:6px 4px}
+.shift-day .day-name {font-size:10px}
+.shift-day .shift-value {font-size:11px;line-height:1.25}
+.shift-day .shift-edit {padding:6px 7px;font-size:12px}
+.shift-person-card.linda {border-color:#f2c6d8;background:linear-gradient(150deg,#fff0f6,#fff)}
+.shift-person-card.francesco {border-color:#c9e0f4;background:linear-gradient(150deg,#eef7ff,#fff)}
+.shift-person-card.linda .shift-heading {color:#c34f82!important}
+.shift-person-card.francesco .shift-heading {color:#267eb7!important}
+.shift-person-card.linda .shift-day {border-color:#f4d9e5}
+.shift-person-card.francesco .shift-day {border-color:#d7e8f5}
 .child-card,.shift-person-card {
   border:1px solid var(--border);
   border-radius:16px;
@@ -272,7 +287,14 @@ footer {
 .child-filter button {padding:7px 10px;font-size:12px;background:var(--pale);color:var(--dark)}
 .child-filter button.active {background:var(--turquoise);color:#fff}
 @media(min-width:680px) {
-  .child-grid,.shift-grid {grid-template-columns:1fr 1fr}
+  .child-grid {grid-template-columns:1fr 1fr}
+  .shift-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .shift-person-card {padding:13px}
+  .shift-heading {font-size:17px;gap:9px}
+  .shift-day {grid-template-columns:52px minmax(0,1fr) auto;gap:7px;padding:8px}
+  .shift-day .day-name {font-size:12px}
+  .shift-day .shift-value {font-size:13px}
+  .shift-day .shift-edit {padding:7px 9px;font-size:13px}
   .child-add-grid {grid-template-columns:1fr 1fr}
 }
 </style>
@@ -392,12 +414,12 @@ footer {
       </form>
     </div>
     <div class="shift-grid">
-      <div class="shift-person-card">
-        <div class="shift-heading" style="color:#087f7b">🌸 <span id="lindaShiftTitle">Linda</span></div>
+      <div class="shift-person-card linda">
+        <div class="shift-heading">🌸 <span id="lindaShiftTitle">Linda</span></div>
         <div class="shift-days" id="lindaShifts"></div>
       </div>
-      <div class="shift-person-card">
-        <div class="shift-heading" style="color:#267eb7">💠 <span id="francescoShiftTitle">Francesco</span></div>
+      <div class="shift-person-card francesco">
+        <div class="shift-heading">💠 <span id="francescoShiftTitle">Francesco</span></div>
         <div class="shift-days" id="francescoShifts"></div>
       </div>
     </div>
@@ -583,7 +605,7 @@ footer {
     <div class="panel">
       <h3>ℹ️ Informazioni sull'app</h3>
       <p><strong>Casa Romito/Pindemonte</strong></p>
-      <p class="muted">Versione 2.3</p>
+      <p class="muted">Versione aggiornata</p>
       <p class="muted">Applicazione privata per l'organizzazione familiare.</p>
       <p class="muted">Dati sincronizzati attraverso Supabase.</p>
     </div>
@@ -593,7 +615,7 @@ footer {
 </main>
 
 <footer>
-  Casa Romito/Pindemonte · Versione 2.3
+  Casa Romito/Pindemonte · App condivisa
 </footer>
 
 <script>
@@ -624,6 +646,7 @@ footer {
   let refreshTimer = null;
   let previousUrgentCount = null;
   let weekOffset = 0;
+  let childrenWeekOffset = 0;
 
   let settings = {
     francesco_name: "Francesco",
@@ -763,14 +786,14 @@ footer {
   }
 
   // GESTIONE SETTIMANE
-  function getWeekRange() {
+  function getWeekRange(offset = weekOffset) {
     const now = new Date();
     now.setHours(0,0,0,0);
 
     const day = (now.getDay() + 6) % 7;
 
     const monday = new Date(now);
-    monday.setDate(now.getDate() - day + weekOffset * 7);
+    monday.setDate(now.getDate() - day + offset * 7);
 
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
@@ -1157,6 +1180,7 @@ footer {
     const {data,error} = await db.from("child_entries")
       .select("*").eq("household_id",HOUSEHOLD_ID)
       .order("entry_date",{ascending:true,nullsFirst:false})
+      .order("entry_time",{ascending:true,nullsFirst:false})
       .order("created_at",{ascending:false});
     if (error) { status("Errore nel caricamento della sezione Figli: " + error.message); return; }
     currentData.childEntries = data || [];
@@ -1166,7 +1190,7 @@ footer {
   function renderChildEntries() {
     ["Gabriele","Rebecca"].forEach(child => {
       const target = child === "Gabriele" ? "gabrieleEntries" : "rebeccaEntries";
-      const week = getWeekRange();
+      const week = getWeekRange(childrenWeekOffset);
       let items = currentData.childEntries.filter(item =>
         item.child_name === child &&
         (!item.entry_date || (item.entry_date >= week.start && item.entry_date <= week.end))
@@ -1239,12 +1263,12 @@ footer {
   }
 
   function updateChildrenWeekLabel() {
-    const week = getWeekRange();
+    const week = getWeekRange(childrenWeekOffset);
     $("childrenWeekLabel").textContent = week.monday.toLocaleDateString("it-IT",{day:"numeric",month:"short"}) + " – " + week.sunday.toLocaleDateString("it-IT",{day:"numeric",month:"long",year:"numeric"});
   }
-  $("childrenPreviousWeek").addEventListener("click",() => { weekOffset--; updateChildrenWeekLabel(); loadChildEntries(); });
-  $("childrenNextWeek").addEventListener("click",() => { weekOffset++; updateChildrenWeekLabel(); loadChildEntries(); });
-  $("childrenCurrentWeek").addEventListener("click",() => { weekOffset=0; updateChildrenWeekLabel(); loadChildEntries(); });
+  $("childrenPreviousWeek").addEventListener("click",() => { childrenWeekOffset--; updateChildrenWeekLabel(); renderChildEntries(); });
+  $("childrenNextWeek").addEventListener("click",() => { childrenWeekOffset++; updateChildrenWeekLabel(); renderChildEntries(); });
+  $("childrenCurrentWeek").addEventListener("click",() => { childrenWeekOffset=0; updateChildrenWeekLabel(); renderChildEntries(); });
 
   // HOME
   function renderHome() {
