@@ -512,1891 +512,1771 @@ footer {
 
 <script>
 (() => {
-  "use strict";
+"use strict";
 
-  // CONFIGURAZIONE SUPABASE
-  const SUPABASE_URL =
-    "https://kxzxjusmnpsnsxyuyydi.supabase.co";
+// CONFIGURAZIONE
+const SUPABASE_URL =
+  "https://kxzxjusmnpsnsxyuyydi.supabase.co";
 
-  const SUPABASE_KEY =
-    "sb_publishable_K5_rhUqnjicHVwOukoTGMg_fJQOCA2F";
+const SUPABASE_KEY =
+  "sb_publishable_K5_rhUqnjicHVwOukoTGMg_fJQOCA2F";
 
-  const HOUSEHOLD_ID =
-    "be8f07ee-b389-4bd8-9a9e-6de9c672eb48";
+const HOUSEHOLD_ID =
+  "be8f07ee-b389-4bd8-9a9e-6de9c672eb48";
 
-  const STORAGE_BUCKET = "household-files";
+const STORAGE_BUCKET = "household-files";
 
-  const VAPID_PUBLIC_KEY =
-    "BN26id35mPhkakPdmJvKBw-NjqKMHuOwo8DNJ210OLIvP9pTZwCkRXLkAeBwl4EYyXqCGCbjMkeJmLly0lCEW-Y";
+const VAPID_PUBLIC_KEY =
+  "BN26id35mPhkakPdmJvKBw-NjqKMHuOwo8DNJ210OLIvP9pTZwCkRXLkAeBwl4EYyXqCGCbjMkeJmLly0lCEW-Y";
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-  const DB_NAME = "casa-romito-offline";
-  const DB_VERSION = 1;
+const DB_NAME = "casa-romito-offline";
+const DB_VERSION = 1;
 
-  const db = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-  );
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
 
-  const $ = id => document.getElementById(id);
+const $ = id => document.getElementById(id);
 
-  let user = null;
-  let channel = null;
-  let refreshTimer = null;
-  let weekOffset = 0;
-  let localMode = false;
-  let starting = false;
-  let syncing = false;
-  let databasePromise = null;
+let user = null;
+let channel = null;
+let refreshTimer = null;
+let weekOffset = 0;
+let localMode = false;
+let starting = false;
+let syncing = false;
+let databasePromise = null;
 
-  let settings = {
-    francesco_name: "Francesco",
-    linda_name: "Linda",
-    francesco_user_id: null,
-    linda_user_id: null
-  };
+let settings = {
+  francesco_name:"Francesco",
+  linda_name:"Linda",
+  francesco_user_id:null,
+  linda_user_id:null
+};
 
-  let currentData = {
-    tasks: [],
-    shopping: [],
-    expenses: [],
-    shifts: []
-  };
+let currentData = {
+  tasks:[],
+  shopping:[],
+  expenses:[],
+  shifts:[]
+};
 
-  let currentAttachments = {
-    task: {},
-    expense: {}
-  };
+let currentAttachments = {
+  task:{},
+  expense:{}
+};
 
-  // --------------------------------------------------
-  // DATABASE LOCALE (INDEXEDDB)
-  // --------------------------------------------------
+// --------------------------------------------------
+// SERVICE WORKER: REGISTRAZIONE ANCHE SENZA NOTIFICHE
+// --------------------------------------------------
 
-  function openLocalDatabase() {
-    if (databasePromise) return databasePromise;
+async function registerAppServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
 
-    databasePromise = new Promise((resolve,reject) => {
-      if (!("indexedDB" in window)) {
-        reject(new Error("Memoria locale non supportata."));
-        return;
-      }
-
-      const request = indexedDB.open(DB_NAME,DB_VERSION);
-
-      request.onupgradeneeded = () => {
-        const database = request.result;
-
-        if (!database.objectStoreNames.contains("cache")) {
-          database.createObjectStore("cache",{keyPath:"key"});
-        }
-
-        if (!database.objectStoreNames.contains("queue")) {
-          database.createObjectStore("queue",{keyPath:"id"});
-        }
-
-        if (!database.objectStoreNames.contains("files")) {
-          database.createObjectStore("files",{keyPath:"id"});
-        }
-      };
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+  try {
+    await navigator.serviceWorker.register("./sw.js",{
+      scope:"./"
     });
-
-    return databasePromise;
+  } catch (error) {
+    console.error("Registrazione service worker:",error);
   }
+}
 
-  async function localRequest(storeName,mode,operation) {
-    const database = await openLocalDatabase();
+// --------------------------------------------------
+// DATABASE LOCALE INDEXEDDB
+// --------------------------------------------------
 
-    return new Promise((resolve,reject) => {
-      const transaction = database.transaction(storeName,mode);
-      const store = transaction.objectStore(storeName);
+function openLocalDatabase() {
+  if (databasePromise) return databasePromise;
 
-      let request;
-
-      try {
-        request = operation(store);
-      } catch (error) {
-        reject(error);
-        return;
-      }
-
-      if (request) {
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      } else {
-        transaction.oncomplete = () => resolve(true);
-        transaction.onerror = () => reject(transaction.error);
-      }
-    });
-  }
-
-  const cachePut = value =>
-    localRequest("cache","readwrite",store => store.put(value));
-
-  const cacheGet = key =>
-    localRequest("cache","readonly",store => store.get(key));
-
-  const queuePut = value =>
-    localRequest("queue","readwrite",store => store.put(value));
-
-  const queueDelete = id =>
-    localRequest("queue","readwrite",store => store.delete(id));
-
-  const queueGetAll = () =>
-    localRequest("queue","readonly",store => store.getAll());
-
-  const filePut = value =>
-    localRequest("files","readwrite",store => store.put(value));
-
-  const fileGet = id =>
-    localRequest("files","readonly",store => store.get(id));
-
-  const fileDelete = id =>
-    localRequest("files","readwrite",store => store.delete(id));
-
-  async function cacheKey(name) {
-    return `${user.id}:${HOUSEHOLD_ID}:${name}`;
-  }
-
-  async function saveCache(name,value) {
-    if (!user) return;
-
-    await cachePut({
-      key:await cacheKey(name),
-      value,
-      saved_at:new Date().toISOString()
-    });
-  }
-
-  async function readCache(name) {
-    if (!user) return null;
-
-    const record = await cacheGet(await cacheKey(name));
-    return record ? record.value : null;
-  }
-
-  async function saveVerifiedAccess() {
-    await saveCache("verified",{
-      user_id:user.id,
-      household_id:HOUSEHOLD_ID,
-      email:user.email || "",
-      verified_at:new Date().toISOString()
-    });
-  }
-
-  async function hasVerifiedAccess() {
-    const saved = await readCache("verified");
-
-    return !!(
-      saved &&
-      saved.user_id === user.id &&
-      saved.household_id === HOUSEHOLD_ID
-    );
-  }
-
-  function makeId() {
-    if (window.crypto && crypto.randomUUID) {
-      return crypto.randomUUID();
+  databasePromise = new Promise((resolve,reject) => {
+    if (!("indexedDB" in window)) {
+      reject(new Error("Memoria locale non supportata."));
+      return;
     }
 
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c => {
-      const r = Math.random() * 16 | 0;
-      const v = c === "x" ? r : (r & 3 | 8);
-      return v.toString(16);
-    });
-  }
+    const request = indexedDB.open(DB_NAME,DB_VERSION);
 
-  // --------------------------------------------------
-  // FUNZIONI GENERALI
-  // --------------------------------------------------
+    request.onupgradeneeded = () => {
+      const database = request.result;
 
-  const safe = value =>
-    String(value ?? "").replace(/[&<>"']/g,c => ({
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      '"':"&quot;",
-      "'":"&#39;"
-    })[c]);
+      if (!database.objectStoreNames.contains("cache")) {
+        database.createObjectStore("cache",{keyPath:"key"});
+      }
 
-  function status(message) {
-    $("status").textContent = message;
-  }
+      if (!database.objectStoreNames.contains("queue")) {
+        database.createObjectStore("queue",{keyPath:"id"});
+      }
 
-  function money(value) {
-    return Number(value || 0).toLocaleString("it-IT",{
-      style:"currency",
-      currency:"EUR"
-    });
-  }
-
-  function localDate(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2,"0");
-    const d = String(date.getDate()).padStart(2,"0");
-    return `${y}-${m}-${d}`;
-  }
-
-  function parseDate(value) {
-    const [y,m,d] = value.split("-").map(Number);
-    return new Date(y,m-1,d);
-  }
-
-  function formatDate(value) {
-    if (!value) return "";
-
-    return parseDate(value).toLocaleDateString("it-IT",{
-      weekday:"long",
-      day:"numeric",
-      month:"long"
-    });
-  }
-
-  function showApp() {
-    $("login").classList.add("hidden");
-    $("app").classList.remove("hidden");
-  }
-
-  function showLogin() {
-    $("app").classList.add("hidden");
-    $("login").classList.remove("hidden");
-  }
-
-  function assignedName(value) {
-    if (
-      value === "Io" ||
-      value === "Francesco" ||
-      value === settings.francesco_name
-    ) return settings.francesco_name;
-
-    if (
-      value === "Mia moglie" ||
-      value === "Linda" ||
-      value === settings.linda_name
-    ) return settings.linda_name;
-
-    return value || "Entrambi";
-  }
-
-  function populateOptions() {
-    $("taskAssigned").innerHTML = `
-      <option value="Entrambi">Entrambi</option>
-      <option value="${safe(settings.francesco_name)}">
-        ${safe(settings.francesco_name)}
-      </option>
-      <option value="${safe(settings.linda_name)}">
-        ${safe(settings.linda_name)}
-      </option>
-    `;
-
-    $("shiftPerson").innerHTML = `
-      <option value="Francesco">${safe(settings.francesco_name)}</option>
-      <option value="Linda">${safe(settings.linda_name)}</option>
-    `;
-
-    $("francescoShiftTitle").textContent = settings.francesco_name;
-    $("lindaShiftTitle").textContent = settings.linda_name;
-  }
-
-  function sortNewest(items) {
-    return [...items].sort((a,b) =>
-      String(b.created_at || "").localeCompare(String(a.created_at || ""))
-    );
-  }
-
-  // --------------------------------------------------
-  // CODA DI SINCRONIZZAZIONE
-  // --------------------------------------------------
-
-  async function addToQueue(operation) {
-    const queued = {
-      id:makeId(),
-      created_at:new Date().toISOString(),
-      user_id:user.id,
-      household_id:HOUSEHOLD_ID,
-      ...operation
+      if (!database.objectStoreNames.contains("files")) {
+        database.createObjectStore("files",{keyPath:"id"});
+      }
     };
 
-    await queuePut(queued);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
 
-    if (navigator.onLine && !localMode) {
-      await syncQueue();
+  return databasePromise;
+}
+
+async function localRequest(storeName,mode,operation) {
+  const database = await openLocalDatabase();
+
+  return new Promise((resolve,reject) => {
+    const transaction = database.transaction(storeName,mode);
+    const store = transaction.objectStore(storeName);
+
+    let request;
+
+    try {
+      request = operation(store);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    if (request) {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     } else {
-      status("Modalità offline · modifiche salvate su questo dispositivo");
+      transaction.oncomplete = () => resolve(true);
+      transaction.onerror = () => reject(transaction.error);
     }
+  });
+}
 
-    return queued;
+const cachePut = value =>
+  localRequest("cache","readwrite",store => store.put(value));
+
+const cacheGet = key =>
+  localRequest("cache","readonly",store => store.get(key));
+
+const cacheDelete = key =>
+  localRequest("cache","readwrite",store => store.delete(key));
+
+const queuePut = value =>
+  localRequest("queue","readwrite",store => store.put(value));
+
+const queueDelete = id =>
+  localRequest("queue","readwrite",store => store.delete(id));
+
+const queueGetAll = () =>
+  localRequest("queue","readonly",store => store.getAll());
+
+const filePut = value =>
+  localRequest("files","readwrite",store => store.put(value));
+
+const fileGet = id =>
+  localRequest("files","readonly",store => store.get(id));
+
+const fileDelete = id =>
+  localRequest("files","readwrite",store => store.delete(id));
+
+async function cacheKey(name) {
+  return `${user.id}:${HOUSEHOLD_ID}:${name}`;
+}
+
+async function saveCache(name,value) {
+  if (!user) return;
+
+  await cachePut({
+    key:await cacheKey(name),
+    value,
+    saved_at:new Date().toISOString()
+  });
+}
+
+async function readCache(name) {
+  if (!user) return null;
+
+  const record = await cacheGet(await cacheKey(name));
+  return record ? record.value : null;
+}
+
+async function saveVerifiedAccess() {
+  await saveCache("verified",{
+    user_id:user.id,
+    household_id:HOUSEHOLD_ID,
+    email:user.email || "",
+    verified_at:new Date().toISOString()
+  });
+}
+
+async function hasVerifiedAccess() {
+  const saved = await readCache("verified");
+
+  return !!(
+    saved &&
+    saved.user_id === user.id &&
+    saved.household_id === HOUSEHOLD_ID
+  );
+}
+
+function makeId() {
+  if (window.crypto && crypto.randomUUID) {
+    return crypto.randomUUID();
   }
 
-  async function pendingOperations() {
-    const all = await queueGetAll();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c => {
+    const r = Math.random() * 16 | 0;
+    const v = c === "x" ? r : (r & 3 | 8);
+    return v.toString(16);
+  });
+}
 
-    return all
-      .filter(item =>
-        item.user_id === user.id &&
-        item.household_id === HOUSEHOLD_ID
-      )
-      .sort((a,b) =>
-        a.created_at.localeCompare(b.created_at)
-      );
+// --------------------------------------------------
+// FUNZIONI GENERALI
+// --------------------------------------------------
+
+const safe = value =>
+  String(value ?? "").replace(/[&<>"']/g,c => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  })[c]);
+
+function status(message) {
+  $("status").textContent = message;
+}
+
+function money(value) {
+  return Number(value || 0).toLocaleString("it-IT",{
+    style:"currency",
+    currency:"EUR"
+  });
+}
+
+function localDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,"0");
+  const d = String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseDate(value) {
+  const [y,m,d] = value.split("-").map(Number);
+  return new Date(y,m-1,d);
+}
+
+function formatDate(value) {
+  if (!value) return "";
+
+  return parseDate(value).toLocaleDateString("it-IT",{
+    weekday:"long",
+    day:"numeric",
+    month:"long"
+  });
+}
+
+function showApp() {
+  $("login").classList.add("hidden");
+  $("app").classList.remove("hidden");
+}
+
+function showLogin() {
+  $("app").classList.add("hidden");
+  $("login").classList.remove("hidden");
+}
+
+function assignedName(value) {
+  if (
+    value === "Io" ||
+    value === "Francesco" ||
+    value === settings.francesco_name
+  ) return settings.francesco_name;
+
+  if (
+    value === "Mia moglie" ||
+    value === "Linda" ||
+    value === settings.linda_name
+  ) return settings.linda_name;
+
+  return value || "Entrambi";
+}
+
+function populateOptions() {
+  $("taskAssigned").innerHTML = `
+    <option value="Entrambi">Entrambi</option>
+    <option value="${safe(settings.francesco_name)}">
+      ${safe(settings.francesco_name)}
+    </option>
+    <option value="${safe(settings.linda_name)}">
+      ${safe(settings.linda_name)}
+    </option>
+  `;
+
+  $("shiftPerson").innerHTML = `
+    <option value="Francesco">${safe(settings.francesco_name)}</option>
+    <option value="Linda">${safe(settings.linda_name)}</option>
+  `;
+
+  $("francescoShiftTitle").textContent = settings.francesco_name;
+  $("lindaShiftTitle").textContent = settings.linda_name;
+}
+
+function sortNewest(items) {
+  return [...items].sort((a,b) =>
+    String(b.created_at || "").localeCompare(String(a.created_at || ""))
+  );
+}
+
+// --------------------------------------------------
+// CODA DI SINCRONIZZAZIONE
+// --------------------------------------------------
+
+async function addToQueue(operation) {
+  const queued = {
+    id:makeId(),
+    created_at:new Date().toISOString(),
+    user_id:user.id,
+    household_id:HOUSEHOLD_ID,
+    ...operation
+  };
+
+  await queuePut(queued);
+
+  if (navigator.onLine && !localMode) {
+    await syncQueue();
+  } else {
+    status("Modalità offline · modifiche salvate su questo dispositivo");
   }
 
-  async function syncOneOperation(operation) {
-    if (operation.type === "insert") {
-      const {error} = await db
-        .from(operation.table)
-        .upsert(operation.row);
+  return queued;
+}
 
-      if (error) throw error;
-      return;
-    }
+async function pendingOperations() {
+  const all = await queueGetAll();
 
-    if (operation.type === "update") {
-      const {error} = await db
-        .from(operation.table)
-        .update(operation.changes)
-        .eq("id",operation.row_id)
-        .eq("household_id",HOUSEHOLD_ID);
+  return all
+    .filter(item =>
+      item.user_id === user.id &&
+      item.household_id === HOUSEHOLD_ID
+    )
+    .sort((a,b) =>
+      a.created_at.localeCompare(b.created_at)
+    );
+}
 
-      if (error) throw error;
-      return;
-    }
+async function syncOneOperation(operation) {
+  if (operation.type === "insert") {
+    const {error} = await db
+      .from(operation.table)
+      .upsert(operation.row);
 
-    if (operation.type === "delete") {
-      const {error} = await db
-        .from(operation.table)
-        .delete()
-        .eq("id",operation.row_id)
-        .eq("household_id",HOUSEHOLD_ID);
+    if (error) throw error;
+    return;
+  }
 
-      if (error) throw error;
-      return;
-    }
+  if (operation.type === "update") {
+    const {error} = await db
+      .from(operation.table)
+      .update(operation.changes)
+      .eq("id",operation.row_id)
+      .eq("household_id",HOUSEHOLD_ID);
 
-    if (operation.type === "deleteAttachments") {
-      const {data,error} = await db
+    if (error) throw error;
+    return;
+  }
+
+  if (operation.type === "delete") {
+    const {error} = await db
+      .from(operation.table)
+      .delete()
+      .eq("id",operation.row_id)
+      .eq("household_id",HOUSEHOLD_ID);
+
+    if (error) throw error;
+    return;
+  }
+
+  if (operation.type === "deleteAttachments") {
+    const {data,error} = await db
+      .from("attachments")
+      .select("id,file_path")
+      .eq("household_id",HOUSEHOLD_ID)
+      .eq("entity_type",operation.entity_type)
+      .eq("entity_id",operation.entity_id);
+
+    if (error) throw error;
+
+    if (data && data.length) {
+      const paths = data.map(item => item.file_path);
+
+      const {error:storageError} = await db.storage
+        .from(STORAGE_BUCKET)
+        .remove(paths);
+
+      if (storageError) throw storageError;
+
+      const {error:metadataError} = await db
         .from("attachments")
-        .select("id,file_path")
+        .delete()
         .eq("household_id",HOUSEHOLD_ID)
         .eq("entity_type",operation.entity_type)
         .eq("entity_id",operation.entity_id);
 
-      if (error) throw error;
-
-      if (data && data.length) {
-        const paths = data.map(item => item.file_path);
-
-        const {error:storageError} = await db.storage
-          .from(STORAGE_BUCKET)
-          .remove(paths);
-
-        if (storageError) throw storageError;
-
-        const {error:metadataError} = await db
-          .from("attachments")
-          .delete()
-          .eq("household_id",HOUSEHOLD_ID)
-          .eq("entity_type",operation.entity_type)
-          .eq("entity_id",operation.entity_id);
-
-        if (metadataError) throw metadataError;
-      }
-
-      return;
+      if (metadataError) throw metadataError;
     }
 
-    if (operation.type === "uploadAttachment") {
-      const savedFile = await fileGet(operation.file_id);
+    return;
+  }
 
-      if (!savedFile || !savedFile.file) {
-        throw new Error("Un allegato in attesa non è più disponibile sul dispositivo.");
-      }
+  if (operation.type === "uploadAttachment") {
+    const savedFile = await fileGet(operation.file_id);
 
-      const path =
-        HOUSEHOLD_ID + "/" +
-        operation.entity_type + "/" +
-        operation.entity_id + "/" +
-        operation.file_id + "_" +
-        safeFileName(operation.file_name);
+    if (!savedFile || !savedFile.file) {
+      throw new Error("Un allegato in attesa non è più disponibile sul dispositivo.");
+    }
 
-      const {error:uploadError} = await db.storage
-        .from(STORAGE_BUCKET)
-        .upload(path,savedFile.file,{
-          contentType:operation.mime_type || "application/octet-stream",
-          upsert:true
-        });
+    const path =
+      HOUSEHOLD_ID + "/" +
+      operation.entity_type + "/" +
+      operation.entity_id + "/" +
+      operation.file_id + "_" +
+      safeFileName(operation.file_name);
 
-      if (uploadError) throw uploadError;
+    const {error:uploadError} = await db.storage
+      .from(STORAGE_BUCKET)
+      .upload(path,savedFile.file,{
+        contentType:operation.mime_type || "application/octet-stream",
+        upsert:true
+      });
 
-      const metadata = {
-        household_id:HOUSEHOLD_ID,
-        entity_type:operation.entity_type,
-        entity_id:operation.entity_id,
-        file_path:path,
-        original_name:operation.file_name,
-        mime_type:operation.mime_type || null,
-        size_bytes:operation.size_bytes,
-        uploaded_by:user.id
-      };
+    if (uploadError) throw uploadError;
 
+    const metadata = {
+      household_id:HOUSEHOLD_ID,
+      entity_type:operation.entity_type,
+      entity_id:operation.entity_id,
+      file_path:path,
+      original_name:operation.file_name,
+      mime_type:operation.mime_type || null,
+      size_bytes:operation.size_bytes,
+      uploaded_by:user.id
+    };
+
+    // Controlla se i metadati esistono già.
+    // In questo modo un tentativo ripetuto non crea duplicati.
+    const {data:existing,error:lookupError} = await db
+      .from("attachments")
+      .select("id")
+      .eq("household_id",HOUSEHOLD_ID)
+      .eq("file_path",path)
+      .maybeSingle();
+
+    if (lookupError) throw lookupError;
+
+    if (!existing) {
       const {error:insertError} = await db
         .from("attachments")
-        .upsert(metadata,{
-          onConflict:"file_path"
-        });
+        .insert(metadata);
 
       if (insertError) throw insertError;
-
-      await fileDelete(operation.file_id);
     }
+
+    await fileDelete(operation.file_id);
   }
+}
 
-  async function syncQueue() {
-    if (
-      syncing ||
-      !navigator.onLine ||
-      !user ||
-      localMode
-    ) return;
+async function syncQueue() {
+  if (
+    syncing ||
+    !navigator.onLine ||
+    !user ||
+    localMode
+  ) return;
 
-    syncing = true;
-    let failed = false;
+  syncing = true;
+  let failed = false;
 
-    try {
-      const operations = await pendingOperations();
-
-      for (const operation of operations) {
-        try {
-          await syncOneOperation(operation);
-          await queueDelete(operation.id);
-        } catch (error) {
-          console.error("Sincronizzazione in attesa:",error);
-          failed = true;
-          break;
-        }
-      }
-
-      if (failed) {
-        status("Connessione disponibile · alcune modifiche attendono la sincronizzazione");
-      } else {
-        status("Dati sincronizzati · " + new Date().toLocaleTimeString("it-IT"));
-      }
-    } finally {
-      syncing = false;
-    }
-
-    if (!failed && navigator.onLine) {
-      await refreshFromServer();
-    }
-  }
-
-  async function applyPendingChanges(table,rows) {
-    const result = [...rows];
+  try {
     const operations = await pendingOperations();
 
     for (const operation of operations) {
-      if (operation.table !== table) continue;
-
-      if (operation.type === "insert") {
-        const index = result.findIndex(row => row.id === operation.row.id);
-
-        if (index === -1) result.push(operation.row);
-        else result[index] = operation.row;
-      }
-
-      if (operation.type === "update") {
-        const index = result.findIndex(row => row.id === operation.row_id);
-
-        if (index !== -1) {
-          result[index] = {
-            ...result[index],
-            ...operation.changes
-          };
-        }
-      }
-
-      if (operation.type === "delete") {
-        const index = result.findIndex(row => row.id === operation.row_id);
-
-        if (index !== -1) result.splice(index,1);
+      try {
+        await syncOneOperation(operation);
+        await queueDelete(operation.id);
+      } catch (error) {
+        console.error("Sincronizzazione in attesa:",error);
+        failed = true;
+        break;
       }
     }
 
-    return result;
+    if (failed) {
+      status("Connessione disponibile · alcune modifiche attendono la sincronizzazione");
+    } else {
+      status("Dati sincronizzati · " + new Date().toLocaleTimeString("it-IT"));
+    }
+  } finally {
+    syncing = false;
   }
 
-  // --------------------------------------------------
-  // IMPOSTAZIONI
-  // --------------------------------------------------
+  // IMPORTANTE:
+  // Qui non richiamiamo refreshFromServer().
+  // Evitiamo così la ricorsione infinita tra le due funzioni.
+}
 
-  async function loadSettings() {
-    if (!navigator.onLine || localMode) {
-      const saved = await readCache("settings");
+async function applyPendingChanges(table,rows) {
+  const result = [...rows];
+  const operations = await pendingOperations();
 
-      if (!saved) return false;
+  for (const operation of operations) {
+    if (operation.table !== table) continue;
 
-      settings = saved;
-      populateOptions();
-      updateAccountLabels();
-      return true;
+    if (operation.type === "insert") {
+      const index = result.findIndex(row => row.id === operation.row.id);
+
+      if (index === -1) result.push(operation.row);
+      else result[index] = operation.row;
     }
 
-    const {data,error} = await db
-      .from("household_settings")
-      .select("*")
-      .eq("household_id",HOUSEHOLD_ID)
-      .maybeSingle();
+    if (operation.type === "update") {
+      const index = result.findIndex(row => row.id === operation.row_id);
 
-    if (error || !data) {
-      const saved = await readCache("settings");
-
-      if (!saved) return false;
-
-      settings = saved;
-      populateOptions();
-      updateAccountLabels();
-      return true;
+      if (index !== -1) {
+        result[index] = {
+          ...result[index],
+          ...operation.changes
+        };
+      }
     }
 
-    settings = data;
-    await saveCache("settings",settings);
+    if (operation.type === "delete") {
+      const index = result.findIndex(row => row.id === operation.row_id);
 
+      if (index !== -1) result.splice(index,1);
+    }
+  }
+
+  return result;
+}
+
+// --------------------------------------------------
+// IMPOSTAZIONI
+// --------------------------------------------------
+
+async function loadSettings() {
+  if (!navigator.onLine || localMode) {
+    const saved = await readCache("settings");
+
+    if (!saved) return false;
+
+    settings = saved;
     populateOptions();
     updateAccountLabels();
-
     return true;
   }
 
-  function updateAccountLabels() {
-    let displayName = "Componente della famiglia";
+  const {data,error} = await db
+    .from("household_settings")
+    .select("*")
+    .eq("household_id",HOUSEHOLD_ID)
+    .maybeSingle();
 
-    if (user.id === settings.francesco_user_id) {
-      displayName = settings.francesco_name;
-    }
+  if (error || !data) {
+    const saved = await readCache("settings");
 
-    if (user.id === settings.linda_user_id) {
-      displayName = settings.linda_name;
-    }
+    if (!saved) return false;
 
-    $("who").textContent =
-      displayName + " · " + (user.email || "");
-
-    $("accountEmail").textContent = user.email || "";
+    settings = saved;
+    populateOptions();
+    updateAccountLabels();
+    return true;
   }
 
-  // --------------------------------------------------
-  // TURNI SETTIMANALI
-  // --------------------------------------------------
+  settings = data;
+  await saveCache("settings",settings);
 
-  function getWeekRange() {
-    const now = new Date();
-    now.setHours(0,0,0,0);
+  populateOptions();
+  updateAccountLabels();
 
-    const day = (now.getDay() + 6) % 7;
+  return true;
+}
 
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - day + weekOffset * 7);
+function updateAccountLabels() {
+  let displayName = "Componente della famiglia";
 
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-
-    return {
-      start:localDate(monday),
-      end:localDate(sunday),
-      monday,
-      sunday
-    };
+  if (user.id === settings.francesco_user_id) {
+    displayName = settings.francesco_name;
   }
 
-  function renderWeekLabel() {
-    const week = getWeekRange();
-
-    $("weekLabel").textContent =
-      week.monday.toLocaleDateString("it-IT",{
-        day:"numeric",
-        month:"short"
-      }) +
-      " – " +
-      week.sunday.toLocaleDateString("it-IT",{
-        day:"numeric",
-        month:"long",
-        year:"numeric"
-      });
+  if (user.id === settings.linda_user_id) {
+    displayName = settings.linda_name;
   }
 
-  async function loadShifts() {
-    if (!user) return;
+  $("who").textContent =
+    displayName + " · " + (user.email || "");
 
-    const week = getWeekRange();
-    renderWeekLabel();
+  $("accountEmail").textContent = user.email || "";
+}
 
-    let shifts = [];
+// --------------------------------------------------
+// TURNI SETTIMANALI
+// --------------------------------------------------
 
-    if (navigator.onLine && !localMode) {
-      const {data,error} = await db
-        .from("work_shifts")
-        .select("*")
-        .eq("household_id",HOUSEHOLD_ID)
-        .gte("shift_date",week.start)
-        .lte("shift_date",week.end)
-        .order("shift_date",{ascending:true});
+function getWeekRange() {
+  const now = new Date();
+  now.setHours(0,0,0,0);
 
-      if (!error) {
-        shifts = data || [];
-        await saveCache("shifts_" + week.start,shifts);
-      } else {
-        shifts = await readCache("shifts_" + week.start) || [];
-      }
+  const day = (now.getDay()+6)%7;
+
+  const monday = new Date(now);
+  monday.setDate(now.getDate()-day+weekOffset*7);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate()+6);
+
+  return {
+    start:localDate(monday),
+    end:localDate(sunday),
+    monday,
+    sunday
+  };
+}
+
+function getWeekStartForDate(value) {
+  const date = parseDate(value);
+  const day = (date.getDay()+6)%7;
+  date.setDate(date.getDate()-day);
+  return localDate(date);
+}
+
+function renderWeekLabel() {
+  const week = getWeekRange();
+
+  $("weekLabel").textContent =
+    week.monday.toLocaleDateString("it-IT",{
+      day:"numeric",
+      month:"short"
+    }) +
+    " – " +
+    week.sunday.toLocaleDateString("it-IT",{
+      day:"numeric",
+      month:"long",
+      year:"numeric"
+    });
+}
+
+async function loadShifts() {
+  if (!user) return;
+
+  const week = getWeekRange();
+  renderWeekLabel();
+
+  let shifts = [];
+
+  if (navigator.onLine && !localMode) {
+    const {data,error} = await db
+      .from("work_shifts")
+      .select("*")
+      .eq("household_id",HOUSEHOLD_ID)
+      .gte("shift_date",week.start)
+      .lte("shift_date",week.end)
+      .order("shift_date",{ascending:true});
+
+    if (!error) {
+      shifts = data || [];
+      await saveCache("shifts_" + week.start,shifts);
     } else {
       shifts = await readCache("shifts_" + week.start) || [];
     }
-
-    const operations = await pendingOperations();
-
-    for (const operation of operations) {
-      if (operation.table !== "work_shifts") continue;
-
-      if (operation.type === "insert") {
-        if (
-          operation.row.shift_date >= week.start &&
-          operation.row.shift_date <= week.end &&
-          !shifts.some(item => item.id === operation.row.id)
-        ) shifts.push(operation.row);
-      }
-
-      if (operation.type === "delete") {
-        shifts = shifts.filter(item => item.id !== operation.row_id);
-      }
-    }
-
-    currentData.shifts = shifts;
-    renderShifts();
-    renderHome();
+  } else {
+    shifts = await readCache("shifts_" + week.start) || [];
   }
 
-  function renderShifts() {
-    const people = [
-      {name:settings.francesco_name,target:"francescoShifts"},
-      {name:settings.linda_name,target:"lindaShifts"}
-    ];
+  shifts = await applyPendingChanges("work_shifts",shifts);
 
-    people.forEach(person => {
-      const shifts = currentData.shifts.filter(
-        shift => assignedName(shift.person) === person.name
-      );
+  shifts = shifts.filter(item =>
+    item.shift_date >= week.start &&
+    item.shift_date <= week.end
+  );
 
-      const list = $(person.target);
+  currentData.shifts = shifts;
 
-      if (!shifts.length) {
-        list.innerHTML =
-          '<p class="muted">Nessun turno questa settimana.</p>';
-        return;
-      }
+  renderShifts();
+  renderHome();
+}
 
-      list.innerHTML = shifts.map(shift => `
-        <div class="shift-card">
-          <div class="details">
-            <strong>${safe(formatDate(shift.shift_date))}</strong>
-            <div class="meta">
-              ${safe((shift.start_time || "").slice(0,5))}
-              –
-              ${safe((shift.end_time || "").slice(0,5))}
-            </div>
-            ${shift.notes ? `<div class="meta">${safe(shift.notes)}</div>` : ""}
-          </div>
-          <button class="danger small"
-            onclick="window.homeApp.removeShift('${safe(shift.id)}')">✕</button>
-        </div>
-      `).join("");
-    });
-  }
+function renderShifts() {
+  const people = [
+    {name:settings.francesco_name,target:"francescoShifts"},
+    {name:settings.linda_name,target:"lindaShifts"}
+  ];
 
-  $("previousWeek").addEventListener("click",async () => {
-    weekOffset--;
-    await loadShifts();
-  });
+  people.forEach(person => {
+    const shifts = currentData.shifts.filter(
+      shift => assignedName(shift.person) === person.name
+    );
 
-  $("nextWeek").addEventListener("click",async () => {
-    weekOffset++;
-    await loadShifts();
-  });
+    const list = $(person.target);
 
-  $("currentWeek").addEventListener("click",async () => {
-    weekOffset = 0;
-    await loadShifts();
-  });
-
-  $("shiftForm").addEventListener("submit",async event => {
-    event.preventDefault();
-
-    const date = $("shiftDate").value;
-    const start = $("shiftStart").value;
-    const end = $("shiftEnd").value;
-
-    if (!date || !start || !end) return;
-
-    if (end <= start) {
-      alert("L'orario di fine deve essere successivo all'inizio.");
+    if (!shifts.length) {
+      list.innerHTML =
+        '<p class="muted">Nessun turno questa settimana.</p>';
       return;
     }
 
-    const person = $("shiftPerson").value;
+    list.innerHTML = shifts.map(shift => `
+      <div class="shift-card">
+        <div class="details">
+          <strong>${safe(formatDate(shift.shift_date))}</strong>
+          <div class="meta">
+            ${safe((shift.start_time || "").slice(0,5))}
+            –
+            ${safe((shift.end_time || "").slice(0,5))}
+          </div>
+          ${shift.notes ? `<div class="meta">${safe(shift.notes)}</div>` : ""}
+        </div>
+        <button class="danger small"
+          onclick="window.homeApp.removeShift('${safe(shift.id)}')">✕</button>
+      </div>
+    `).join("");
+  });
+}
 
-    const row = {
-      id:makeId(),
-      household_id:HOUSEHOLD_ID,
-      person:person === "Linda" ? "Linda" : "Francesco",
-      shift_date:date,
-      start_time:start,
-      end_time:end,
-      notes:$("shiftNotes").value.trim() || null,
-      created_at:new Date().toISOString()
-    };
+$("previousWeek").addEventListener("click",async () => {
+  weekOffset--;
+  await loadShifts();
+});
 
-    currentData.shifts.push(row);
+$("nextWeek").addEventListener("click",async () => {
+  weekOffset++;
+  await loadShifts();
+});
 
-    const week = getWeekRange();
-    if (date >= week.start && date <= week.end) {
-      await saveCache("shifts_" + week.start,currentData.shifts);
-    }
+$("currentWeek").addEventListener("click",async () => {
+  weekOffset = 0;
+  await loadShifts();
+});
 
-    await addToQueue({
-      type:"insert",
-      table:"work_shifts",
-      row
-    });
+$("shiftForm").addEventListener("submit",async event => {
+  event.preventDefault();
 
-    $("shiftForm").reset();
-    $("shiftDate").value = localDate(new Date());
-    weekOffset = 0;
+  const date = $("shiftDate").value;
+  const start = $("shiftStart").value;
+  const end = $("shiftEnd").value;
 
-    await loadShifts();
+  if (!date || !start || !end) return;
+
+  if (end <= start) {
+    alert("L'orario di fine deve essere successivo all'inizio.");
+    return;
+  }
+
+  const person = $("shiftPerson").value;
+
+  const row = {
+    id:makeId(),
+    household_id:HOUSEHOLD_ID,
+    person:person === "Linda" ? "Linda" : "Francesco",
+    shift_date:date,
+    start_time:start,
+    end_time:end,
+    notes:$("shiftNotes").value.trim() || null,
+    created_at:new Date().toISOString()
+  };
+
+  await addToQueue({
+    type:"insert",
+    table:"work_shifts",
+    row
   });
 
-  async function removeShift(id) {
-    if (!confirm("Vuoi eliminare questo turno?")) return;
+  const targetWeek = getWeekStartForDate(date);
+  const cachedWeek = await readCache("shifts_" + targetWeek) || [];
 
-    currentData.shifts =
-      currentData.shifts.filter(item => item.id !== id);
-
-    const week = getWeekRange();
-    await saveCache("shifts_" + week.start,currentData.shifts);
-
-    await addToQueue({
-      type:"delete",
-      table:"work_shifts",
-      row_id:id
-    });
-
-    await loadShifts();
+  if (!cachedWeek.some(item => item.id === row.id)) {
+    cachedWeek.push(row);
   }
 
-  // --------------------------------------------------
-  // ALLEGATI
-  // --------------------------------------------------
+  await saveCache("shifts_" + targetWeek,cachedWeek);
 
-  function safeFileName(name) {
-    return name.replace(/[^a-zA-Z0-9._-]/g,"_");
-  }
+  $("shiftForm").reset();
+  $("shiftDate").value = localDate(new Date());
+  weekOffset = 0;
 
-  async function savePendingFiles(entityType,entityId,files) {
-    if (!files || !files.length) return true;
+  await loadShifts();
+});
 
-    for (const file of Array.from(files)) {
-      if (file.size > MAX_FILE_SIZE) {
-        alert(file.name + " supera il limite di 10 MB.");
-        continue;
-      }
+async function removeShift(id) {
+  if (!confirm("Vuoi eliminare questo turno?")) return;
 
-      const fileId = makeId();
+  currentData.shifts =
+    currentData.shifts.filter(item => item.id !== id);
 
-      await filePut({
-        id:fileId,
-        file,
-        file_name:file.name,
-        entity_type:entityType,
-        entity_id:entityId
-      });
+  const week = getWeekRange();
+  await saveCache("shifts_" + week.start,currentData.shifts);
 
-      await addToQueue({
-        type:"uploadAttachment",
-        file_id:fileId,
-        entity_type:entityType,
-        entity_id:entityId,
-        file_name:file.name,
-        mime_type:file.type || null,
-        size_bytes:file.size
-      });
+  await addToQueue({
+    type:"delete",
+    table:"work_shifts",
+    row_id:id
+  });
+
+  await loadShifts();
+}
+
+// --------------------------------------------------
+// ALLEGATI
+// --------------------------------------------------
+
+function safeFileName(name) {
+  const cleaned = String(name || "allegato")
+    .replace(/[^a-zA-Z0-9._-]/g,"_");
+
+  return cleaned || "allegato";
+}
+
+async function savePendingFiles(entityType,entityId,files) {
+  if (!files || !files.length) return true;
+
+  for (const file of Array.from(files)) {
+    if (file.size > MAX_FILE_SIZE) {
+      alert(file.name + " supera il limite di 10 MB.");
+      continue;
     }
 
-    return true;
-  }
+    const fileId = makeId();
 
-  async function loadAttachments(entityType,ids) {
-    if (!ids.length) return {};
-
-    let data = [];
-
-    if (navigator.onLine && !localMode) {
-      const {data:remoteData,error} = await db
-        .from("attachments")
-        .select("*")
-        .eq("household_id",HOUSEHOLD_ID)
-        .eq("entity_type",entityType)
-        .in("entity_id",ids);
-
-      if (!error) {
-        data = remoteData || [];
-        await saveCache("attachments_" + entityType,data);
-      } else {
-        data = await readCache("attachments_" + entityType) || [];
-      }
-    } else {
-      data = await readCache("attachments_" + entityType) || [];
-    }
-
-    const grouped = {};
-
-    for (const attachment of data) {
-      if (!ids.includes(attachment.entity_id)) continue;
-
-      if (navigator.onLine && !localMode) {
-        const {data:urlData,error:urlError} = await db.storage
-          .from(STORAGE_BUCKET)
-          .createSignedUrl(attachment.file_path,3600);
-
-        if (!urlError && urlData) {
-          attachment.signed_url = urlData.signedUrl;
-        }
-      }
-
-      if (!grouped[attachment.entity_id]) {
-        grouped[attachment.entity_id] = [];
-      }
-
-      grouped[attachment.entity_id].push(attachment);
-    }
-
-    const queued = await pendingOperations();
-
-    for (const operation of queued) {
-      if (
-        operation.type !== "uploadAttachment" ||
-        operation.entity_type !== entityType ||
-        !ids.includes(operation.entity_id)
-      ) continue;
-
-      if (!grouped[operation.entity_id]) {
-        grouped[operation.entity_id] = [];
-      }
-
-      grouped[operation.entity_id].push({
-        original_name:operation.file_name,
-        local_pending:true
-      });
-    }
-
-    return grouped;
-  }
-
-  function renderAttachments(attachments) {
-    if (!attachments || !attachments.length) return "";
-
-    return `
-      <div class="attachment-list">
-        ${attachments.map(file => file.signed_url ? `
-          <a class="attachment-link"
-            href="${safe(file.signed_url)}"
-            target="_blank"
-            rel="noopener noreferrer">
-            📎 ${safe(file.original_name)}
-          </a>
-        ` : `
-          <span class="attachment-link">
-            📎 ${safe(file.original_name)}
-            ${file.local_pending ? " · in attesa" : ""}
-          </span>
-        `).join("")}
-      </div>
-    `;
-  }
-
-  async function deleteEntityAttachments(entityType,entityId) {
-    await addToQueue({
-      type:"deleteAttachments",
+    await filePut({
+      id:fileId,
+      file,
+      file_name:file.name,
       entity_type:entityType,
       entity_id:entityId
     });
+
+    await addToQueue({
+      type:"uploadAttachment",
+      file_id:fileId,
+      entity_type:entityType,
+      entity_id:entityId,
+      file_name:file.name,
+      mime_type:file.type || null,
+      size_bytes:file.size
+    });
   }
 
-  // --------------------------------------------------
-  // DATI E CACHE
-  // --------------------------------------------------
+  return true;
+}
 
-  async function loadData() {
-    if (!user) return;
+async function loadAttachments(entityType,ids) {
+  if (!ids.length) return {};
 
-    if (!navigator.onLine || localMode) {
-      await loadDataFromCache();
-      return;
+  let data = [];
+
+  if (navigator.onLine && !localMode) {
+    const {data:remoteData,error} = await db
+      .from("attachments")
+      .select("*")
+      .eq("household_id",HOUSEHOLD_ID)
+      .eq("entity_type",entityType)
+      .in("entity_id",ids);
+
+    if (!error) {
+      data = remoteData || [];
+      await saveCache("attachments_" + entityType,data);
+    } else {
+      data = await readCache("attachments_" + entityType) || [];
+    }
+  } else {
+    data = await readCache("attachments_" + entityType) || [];
+  }
+
+  const grouped = {};
+
+  for (const attachment of data) {
+    if (!ids.includes(attachment.entity_id)) continue;
+
+    if (navigator.onLine && !localMode) {
+      const {data:urlData,error:urlError} = await db.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(attachment.file_path,3600);
+
+      if (!urlError && urlData) {
+        attachment.signed_url = urlData.signedUrl;
+      }
     }
 
-    const tables = [
-      "tasks",
-      "shopping",
-      "household_expenses"
-    ];
-
-    const results = await Promise.all(
-      tables.map(table =>
-        db.from(table)
-          .select("*")
-          .eq("household_id",HOUSEHOLD_ID)
-          .order("created_at",{ascending:false})
-      )
-    );
-
-    const errors = results.filter(result => result.error);
-
-    if (errors.length) {
-      await loadDataFromCache();
-      return;
+    if (!grouped[attachment.entity_id]) {
+      grouped[attachment.entity_id] = [];
     }
 
-    let [tasks,shopping,expenses] =
-      results.map(result => result.data || []);
-
-    tasks = await applyPendingChanges("tasks",tasks);
-    shopping = await applyPendingChanges("shopping",shopping);
-    expenses = await applyPendingChanges("household_expenses",expenses);
-
-    currentData.tasks = sortNewest(tasks);
-    currentData.shopping = sortNewest(shopping);
-    currentData.expenses = sortNewest(expenses);
-
-    await saveCache("tasks",currentData.tasks);
-    await saveCache("shopping",currentData.shopping);
-    await saveCache("expenses",currentData.expenses);
-
-    const [taskAttachments,expenseAttachments] =
-      await Promise.all([
-        loadAttachments("task",tasks.map(item => item.id)),
-        loadAttachments("expense",expenses.map(item => item.id))
-      ]);
-
-    currentAttachments.task = taskAttachments;
-    currentAttachments.expense = expenseAttachments;
-
-    renderTasks(currentData.tasks,taskAttachments);
-    renderShopping(currentData.shopping);
-    renderExpenses(currentData.expenses,expenseAttachments);
-    renderHome();
-
-    const waiting = await pendingOperations();
-
-    status(
-      waiting.length
-        ? "Dati aggiornati · " + waiting.length + " modifiche in attesa"
-        : "Dati aggiornati · " + new Date().toLocaleTimeString("it-IT")
-    );
+    grouped[attachment.entity_id].push(attachment);
   }
 
-  async function loadDataFromCache() {
-    currentData.tasks = await readCache("tasks") || [];
-    currentData.shopping = await readCache("shopping") || [];
-    currentData.expenses = await readCache("expenses") || [];
+  const queued = await pendingOperations();
 
-    currentAttachments.task =
-      await loadAttachments("task",currentData.tasks.map(item => item.id));
+  for (const operation of queued) {
+    if (
+      operation.type !== "uploadAttachment" ||
+      operation.entity_type !== entityType ||
+      !ids.includes(operation.entity_id)
+    ) continue;
 
-    currentAttachments.expense =
-      await loadAttachments("expense",currentData.expenses.map(item => item.id));
-
-    renderTasks(currentData.tasks,currentAttachments.task);
-    renderShopping(currentData.shopping);
-    renderExpenses(currentData.expenses,currentAttachments.expense);
-    renderHome();
-
-    status("Modalità offline · dati salvati su questo dispositivo");
-  }
-
-  async function refreshFromServer() {
-    if (!user || !navigator.onLine || localMode) return;
-
-    await syncQueue();
-
-    if (localMode) return;
-
-    await loadSettings();
-    await loadData();
-    await loadShifts();
-  }
-
-  // --------------------------------------------------
-  // HOME
-  // --------------------------------------------------
-
-  function renderHome() {
-    $("homeTasks").textContent =
-      currentData.tasks.filter(item => !item.completed).length;
-
-    $("homeShopping").textContent =
-      currentData.shopping.filter(item => !item.completed).length;
-
-    const unpaidTotal = currentData.expenses
-      .filter(item => !item.paid)
-      .reduce((sum,item) => sum + Number(item.amount || 0),0);
-
-    $("homeExpenses").textContent = money(unpaidTotal);
-    $("homeShifts").textContent = currentData.shifts.length;
-  }
-
-  // --------------------------------------------------
-  // COMPITI
-  // --------------------------------------------------
-
-  function renderTasks(items,attachments = {}) {
-    const list = $("tasksList");
-
-    if (!items.length) {
-      list.innerHTML =
-        '<p class="muted">Non ci sono ancora compiti.</p>';
-      return;
+    if (!grouped[operation.entity_id]) {
+      grouped[operation.entity_id] = [];
     }
 
-    list.innerHTML = items.map(item => `
-      <div class="item ${item.completed ? "done" : ""}
-        ${item.urgent && !item.completed ? "urgent" : ""}">
+    grouped[operation.entity_id].push({
+      original_name:operation.file_name,
+      local_pending:true
+    });
+  }
 
+  return grouped;
+}
+
+function renderAttachments(attachments) {
+  if (!attachments || !attachments.length) return "";
+
+  return `
+    <div class="attachment-list">
+      ${attachments.map(file => file.signed_url ? `
+        <a class="attachment-link"
+          href="${safe(file.signed_url)}"
+          target="_blank"
+          rel="noopener noreferrer">
+          📎 ${safe(file.original_name)}
+        </a>
+      ` : `
+        <span class="attachment-link">
+          📎 ${safe(file.original_name)}
+          ${file.local_pending ? " · in attesa" : ""}
+        </span>
+      `).join("")}
+    </div>
+  `;
+}
+
+async function deleteEntityAttachments(entityType,entityId) {
+  await addToQueue({
+    type:"deleteAttachments",
+    entity_type:entityType,
+    entity_id:entityId
+  });
+}
+
+// --------------------------------------------------
+// DATI E CACHE
+// --------------------------------------------------
+
+async function loadData() {
+  if (!user) return;
+
+  if (!navigator.onLine || localMode) {
+    await loadDataFromCache();
+    return;
+  }
+
+  const tables = [
+    "tasks",
+    "shopping",
+    "household_expenses"
+  ];
+
+  const results = await Promise.all(
+    tables.map(table =>
+      db.from(table)
+        .select("*")
+        .eq("household_id",HOUSEHOLD_ID)
+        .order("created_at",{ascending:false})
+    )
+  );
+
+  const errors = results.filter(result => result.error);
+
+  if (errors.length) {
+    await loadDataFromCache();
+    return;
+  }
+
+  let [tasks,shopping,expenses] =
+    results.map(result => result.data || []);
+
+  tasks = await applyPendingChanges("tasks",tasks);
+  shopping = await applyPendingChanges("shopping",shopping);
+  expenses = await applyPendingChanges("household_expenses",expenses);
+
+  currentData.tasks = sortNewest(tasks);
+  currentData.shopping = sortNewest(shopping);
+  currentData.expenses = sortNewest(expenses);
+
+  await saveCache("tasks",currentData.tasks);
+  await saveCache("shopping",currentData.shopping);
+  await saveCache("expenses",currentData.expenses);
+
+  const [taskAttachments,expenseAttachments] =
+    await Promise.all([
+      loadAttachments("task",tasks.map(item => item.id)),
+      loadAttachments("expense",expenses.map(item => item.id))
+    ]);
+
+  currentAttachments.task = taskAttachments;
+  currentAttachments.expense = expenseAttachments;
+
+  renderTasks(currentData.tasks,taskAttachments);
+  renderShopping(currentData.shopping);
+  renderExpenses(currentData.expenses,expenseAttachments);
+  renderHome();
+
+  const waiting = await pendingOperations();
+
+  status(
+    waiting.length
+      ? "Dati aggiornati · " + waiting.length + " modifiche in attesa"
+      : "Dati aggiornati · " + new Date().toLocaleTimeString("it-IT")
+  );
+}
+
+async function loadDataFromCache() {
+  let tasks = await readCache("tasks") || [];
+  let shopping = await readCache("shopping") || [];
+  let expenses = await readCache("expenses") || [];
+
+  // Applica anche le operazioni ancora in coda.
+  tasks = await applyPendingChanges("tasks",tasks);
+  shopping = await applyPendingChanges("shopping",shopping);
+  expenses = await applyPendingChanges("household_expenses",expenses);
+
+  currentData.tasks = sortNewest(tasks);
+  currentData.shopping = sortNewest(shopping);
+  currentData.expenses = sortNewest(expenses);
+
+  currentAttachments.task =
+    await loadAttachments("task",currentData.tasks.map(item => item.id));
+
+  currentAttachments.expense =
+    await loadAttachments("expense",currentData.expenses.map(item => item.id));
+
+  renderTasks(currentData.tasks,currentAttachments.task);
+  renderShopping(currentData.shopping);
+  renderExpenses(currentData.expenses,currentAttachments.expense);
+  renderHome();
+
+  status("Modalità offline · dati salvati su questo dispositivo");
+}
+
+async function refreshFromServer() {
+  if (!user || !navigator.onLine || localMode) return;
+
+  // Prima sincronizza le modifiche locali.
+  await syncQueue();
+
+  if (localMode) return;
+
+  // Poi aggiorna i dati dal server.
+  await loadSettings();
+  await loadData();
+  await loadShifts();
+}
+
+// --------------------------------------------------
+// HOME
+// --------------------------------------------------
+
+function renderHome() {
+  $("homeTasks").textContent =
+    currentData.tasks.filter(item => !item.completed).length;
+
+  $("homeShopping").textContent =
+    currentData.shopping.filter(item => !item.completed).length;
+
+  const unpaidTotal = currentData.expenses
+    .filter(item => !item.paid)
+    .reduce((sum,item) => sum + Number(item.amount || 0),0);
+
+  $("homeExpenses").textContent = money(unpaidTotal);
+  $("homeShifts").textContent = currentData.shifts.length;
+}
+
+// --------------------------------------------------
+// COMPITI
+// --------------------------------------------------
+
+function renderTasks(items,attachments = {}) {
+  const list = $("tasksList");
+
+  if (!items.length) {
+    list.innerHTML =
+      '<p class="muted">Non ci sono ancora compiti.</p>';
+    return;
+  }
+
+  list.innerHTML = items.map(item => `
+    <div class="item ${item.completed ? "done" : ""}
+      ${item.urgent && !item.completed ? "urgent" : ""}">
+
+      <input type="checkbox"
+        ${item.completed ? "checked" : ""}
+        aria-label="Completa compito"
+        onchange="window.homeApp.toggle(
+          'tasks','${safe(item.id)}','completed',this.checked
+        )">
+
+      <div class="details">
+        <strong>${safe(item.title)}</strong>
+        <span class="tag">${safe(assignedName(item.assigned_to))}</span>
+        ${item.urgent ? '<span class="tag urgent-tag">URGENTE</span>' : ""}
+        ${renderAttachments(attachments[item.id])}
+      </div>
+
+      <button class="danger small"
+        onclick="window.homeApp.remove('tasks','${safe(item.id)}','task')">✕</button>
+    </div>
+  `).join("");
+}
+
+$("taskForm").addEventListener("submit",async event => {
+  event.preventDefault();
+
+  const title = $("taskTitle").value.trim();
+  if (!title) return;
+
+  const files = Array.from($("taskFiles").files || []);
+
+  const row = {
+    id:makeId(),
+    title,
+    assigned_to:$("taskAssigned").value,
+    urgent:$("taskUrgent").checked,
+    completed:false,
+    household_id:HOUSEHOLD_ID,
+    created_at:new Date().toISOString()
+  };
+
+  currentData.tasks.unshift(row);
+  await saveCache("tasks",currentData.tasks);
+
+  renderTasks(currentData.tasks,currentAttachments.task);
+  renderHome();
+
+  await addToQueue({
+    type:"insert",
+    table:"tasks",
+    row
+  });
+
+  if (files.length) {
+    await savePendingFiles("task",row.id,files);
+  }
+
+  $("taskForm").reset();
+  $("taskAssigned").value = "Entrambi";
+
+  await loadData();
+});
+
+// --------------------------------------------------
+// SPESA
+// --------------------------------------------------
+
+function renderShopping(items) {
+  const list = $("shoppingList");
+
+  if (!items.length) {
+    list.innerHTML =
+      '<p class="muted">La lista della spesa è vuota.</p>';
+    return;
+  }
+
+  list.innerHTML = items.map(item => `
+    <div class="item ${item.completed ? "done" : ""}">
+      <input type="checkbox"
+        ${item.completed ? "checked" : ""}
+        aria-label="Prodotto acquistato"
+        onchange="window.homeApp.toggle(
+          'shopping','${safe(item.id)}','completed',this.checked
+        )">
+
+      <div class="details">
+        <strong>${safe(item.title)}</strong>
+      </div>
+
+      <button class="danger small"
+        onclick="window.homeApp.remove('shopping','${safe(item.id)}')">✕</button>
+    </div>
+  `).join("");
+}
+
+$("shoppingForm").addEventListener("submit",async event => {
+  event.preventDefault();
+
+  const title = $("shoppingTitle").value.trim();
+  if (!title) return;
+
+  const row = {
+    id:makeId(),
+    title,
+    completed:false,
+    household_id:HOUSEHOLD_ID,
+    created_at:new Date().toISOString()
+  };
+
+  currentData.shopping.unshift(row);
+  await saveCache("shopping",currentData.shopping);
+
+  renderShopping(currentData.shopping);
+  renderHome();
+
+  await addToQueue({
+    type:"insert",
+    table:"shopping",
+    row
+  });
+
+  $("shoppingForm").reset();
+  await loadData();
+});
+
+// --------------------------------------------------
+// SPESE
+// --------------------------------------------------
+
+function renderExpenses(items,attachments = {}) {
+  const unpaid = items.filter(item => !item.paid);
+  const paid = items.filter(item => item.paid);
+
+  const unpaidTotal = unpaid.reduce(
+    (sum,item) => sum + Number(item.amount || 0),0
+  );
+
+  const paidTotal = paid.reduce(
+    (sum,item) => sum + Number(item.amount || 0),0
+  );
+
+  $("totalUnpaid").textContent = money(unpaidTotal);
+  $("totalPaid").textContent = money(paidTotal);
+
+  function renderList(listItems,isPaid) {
+    if (!listItems.length) {
+      return isPaid
+        ? '<p class="muted">Non ci sono ancora spese pagate.</p>'
+        : '<p class="muted">Non ci sono spese da pagare.</p>';
+    }
+
+    return listItems.map(item => `
+      <div class="item ${isPaid ? "done" : ""}">
         <input type="checkbox"
-          ${item.completed ? "checked" : ""}
-          aria-label="Completa compito"
+          ${item.paid ? "checked" : ""}
+          aria-label="Segna come pagata"
           onchange="window.homeApp.toggle(
-            'tasks','${safe(item.id)}','completed',this.checked
+            'household_expenses','${safe(item.id)}','paid',this.checked
           )">
 
         <div class="details">
           <strong>${safe(item.title)}</strong>
-          <span class="tag">${safe(assignedName(item.assigned_to))}</span>
-          ${item.urgent ? '<span class="tag urgent-tag">URGENTE</span>' : ""}
+          <div class="meta">${safe(money(item.amount))}</div>
+
+          ${item.due_date
+            ? `<div class="meta">Scadenza: ${safe(formatDate(item.due_date))}</div>`
+            : ""}
+
+          ${item.paid
+            ? '<span class="tag paid-tag">PAGATO</span>'
+            : '<span class="tag unpaid-tag">DA PAGARE</span>'}
+
           ${renderAttachments(attachments[item.id])}
         </div>
 
         <button class="danger small"
-          onclick="window.homeApp.remove('tasks','${safe(item.id)}','task')">✕</button>
+          onclick="window.homeApp.remove(
+            'household_expenses','${safe(item.id)}','expense'
+          )">✕</button>
       </div>
     `).join("");
   }
 
-  $("taskForm").addEventListener("submit",async event => {
-    event.preventDefault();
+  $("unpaidExpenses").innerHTML = renderList(unpaid,false);
+  $("paidExpenses").innerHTML = renderList(paid,true);
+}
 
-    const title = $("taskTitle").value.trim();
-    if (!title) return;
+$("expenseForm").addEventListener("submit",async event => {
+  event.preventDefault();
 
-    const files = Array.from($("taskFiles").files || []);
+  const title = $("expenseTitle").value.trim();
+  const amount = Number($("expenseAmount").value);
+  const dueDate = $("expenseDate").value || null;
+  const files = Array.from($("expenseFiles").files || []);
 
-    const row = {
-      id:makeId(),
-      title,
-      assigned_to:$("taskAssigned").value,
-      urgent:$("taskUrgent").checked,
-      completed:false,
-      household_id:HOUSEHOLD_ID,
-      created_at:new Date().toISOString()
-    };
-
-    currentData.tasks.unshift(row);
-    await saveCache("tasks",currentData.tasks);
-
-    renderTasks(currentData.tasks,currentAttachments.task);
-    renderHome();
-
-    await addToQueue({
-      type:"insert",
-      table:"tasks",
-      row
-    });
-
-    if (files.length) {
-      await savePendingFiles("task",row.id,files);
-    }
-
-    $("taskForm").reset();
-    $("taskAssigned").value = "Entrambi";
-
-    await loadData();
-  });
-
-  // --------------------------------------------------
-  // SPESA
-  // --------------------------------------------------
-
-  function renderShopping(items) {
-    const list = $("shoppingList");
-
-    if (!items.length) {
-      list.innerHTML =
-        '<p class="muted">La lista della spesa è vuota.</p>';
-      return;
-    }
-
-    list.innerHTML = items.map(item => `
-      <div class="item ${item.completed ? "done" : ""}">
-        <input type="checkbox"
-          ${item.completed ? "checked" : ""}
-          aria-label="Prodotto acquistato"
-          onchange="window.homeApp.toggle(
-            'shopping','${safe(item.id)}','completed',this.checked
-          )">
-
-        <div class="details">
-          <strong>${safe(item.title)}</strong>
-        </div>
-
-        <button class="danger small"
-          onclick="window.homeApp.remove('shopping','${safe(item.id)}')">✕</button>
-      </div>
-    `).join("");
+  if (!title) {
+    alert("Inserisci una descrizione per la spesa.");
+    return;
   }
 
-  $("shoppingForm").addEventListener("submit",async event => {
-    event.preventDefault();
-
-    const title = $("shoppingTitle").value.trim();
-    if (!title) return;
-
-    const row = {
-      id:makeId(),
-      title,
-      completed:false,
-      household_id:HOUSEHOLD_ID,
-      created_at:new Date().toISOString()
-    };
-
-    currentData.shopping.unshift(row);
-    await saveCache("shopping",currentData.shopping);
-
-    renderShopping(currentData.shopping);
-    renderHome();
-
-    await addToQueue({
-      type:"insert",
-      table:"shopping",
-      row
-    });
-
-    $("shoppingForm").reset();
-    await loadData();
-  });
-
-  // --------------------------------------------------
-  // SPESE
-  // --------------------------------------------------
-
-  function renderExpenses(items,attachments = {}) {
-    const unpaid = items.filter(item => !item.paid);
-    const paid = items.filter(item => item.paid);
-
-    const unpaidTotal = unpaid.reduce(
-      (sum,item) => sum + Number(item.amount || 0),0
-    );
-
-    const paidTotal = paid.reduce(
-      (sum,item) => sum + Number(item.amount || 0),0
-    );
-
-    $("totalUnpaid").textContent = money(unpaidTotal);
-    $("totalPaid").textContent = money(paidTotal);
-
-    function renderList(listItems,isPaid) {
-      if (!listItems.length) {
-        return isPaid
-          ? '<p class="muted">Non ci sono ancora spese pagate.</p>'
-          : '<p class="muted">Non ci sono spese da pagare.</p>';
-      }
-
-      return listItems.map(item => `
-        <div class="item ${isPaid ? "done" : ""}">
-          <input type="checkbox"
-            ${item.paid ? "checked" : ""}
-            aria-label="Segna come pagata"
-            onchange="window.homeApp.toggle(
-              'household_expenses','${safe(item.id)}','paid',this.checked
-            )">
-
-          <div class="details">
-            <strong>${safe(item.title)}</strong>
-            <div class="meta">${safe(money(item.amount))}</div>
-
-            ${item.due_date
-              ? `<div class="meta">Scadenza: ${safe(formatDate(item.due_date))}</div>`
-              : ""}
-
-            ${item.paid
-              ? '<span class="tag paid-tag">PAGATO</span>'
-              : '<span class="tag unpaid-tag">DA PAGARE</span>'}
-
-            ${renderAttachments(attachments[item.id])}
-          </div>
-
-          <button class="danger small"
-            onclick="window.homeApp.remove(
-              'household_expenses','${safe(item.id)}','expense'
-            )">✕</button>
-        </div>
-      `).join("");
-    }
-
-    $("unpaidExpenses").innerHTML = renderList(unpaid,false);
-    $("paidExpenses").innerHTML = renderList(paid,true);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    alert("Inserisci un importo valido, maggiore di zero.");
+    return;
   }
 
-  $("expenseForm").addEventListener("submit",async event => {
-    event.preventDefault();
-
-    const title = $("expenseTitle").value.trim();
-    const amount = Number($("expenseAmount").value);
-    const dueDate = $("expenseDate").value || null;
-    const files = Array.from($("expenseFiles").files || []);
-
-    if (!title) {
-      alert("Inserisci una descrizione per la spesa.");
-      return;
-    }
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      alert("Inserisci un importo valido, maggiore di zero.");
-      return;
-    }
-
-    const row = {
-      id:makeId(),
-      household_id:HOUSEHOLD_ID,
-      title,
-      amount,
-      due_date:dueDate,
-      paid:false,
-      created_at:new Date().toISOString()
-    };
-
-    currentData.expenses.unshift(row);
-    await saveCache("expenses",currentData.expenses);
-
-    renderExpenses(currentData.expenses,currentAttachments.expense);
-    renderHome();
-
-    await addToQueue({
-      type:"insert",
-      table:"household_expenses",
-      row
-    });
-
-    if (files.length) {
-      await savePendingFiles("expense",row.id,files);
-    }
-
-    $("expenseForm").reset();
-    await loadData();
-  });
-
-  // --------------------------------------------------
-  // MODIFICA ED ELIMINAZIONE
-  // --------------------------------------------------
-
-  async function toggle(table,id,column,value) {
-    const key = {
-      tasks:"tasks",
-      shopping:"shopping",
-      household_expenses:"expenses"
-    }[table];
-
-    if (!key) return;
-
-    const item = currentData[key].find(row => row.id === id);
-    if (!item) return;
-
-    item[column] = value;
-
-    await saveCache(key,currentData[key]);
-
-    if (table === "tasks") {
-      renderTasks(currentData.tasks,currentAttachments.task);
-    }
-
-    if (table === "shopping") {
-      renderShopping(currentData.shopping);
-    }
-
-    if (table === "household_expenses") {
-      renderExpenses(currentData.expenses,currentAttachments.expense);
-    }
-
-    renderHome();
-
-    await addToQueue({
-      type:"update",
-      table,
-      row_id:id,
-      changes:{[column]:value}
-    });
-  }
-
-  async function remove(table,id,entityType = null) {
-    if (!confirm("Vuoi eliminare questo elemento?")) return;
-
-    const key = {
-      tasks:"tasks",
-      shopping:"shopping",
-      household_expenses:"expenses"
-    }[table];
-
-    if (!key) return;
-
-    if (entityType) {
-      await deleteEntityAttachments(entityType,id);
-    }
-
-    currentData[key] =
-      currentData[key].filter(item => item.id !== id);
-
-    await saveCache(key,currentData[key]);
-
-    if (table === "tasks") {
-      renderTasks(currentData.tasks,currentAttachments.task);
-    }
-
-    if (table === "shopping") {
-      renderShopping(currentData.shopping);
-    }
-
-    if (table === "household_expenses") {
-      renderExpenses(currentData.expenses,currentAttachments.expense);
-    }
-
-    renderHome();
-
-    await addToQueue({
-      type:"delete",
-      table,
-      row_id:id
-    });
-  }
-
-  window.homeApp = {
-    toggle,
-    remove,
-    removeShift
+  const row = {
+    id:makeId(),
+    household_id:HOUSEHOLD_ID,
+    title,
+    amount,
+    due_date:dueDate,
+    paid:false,
+    created_at:new Date().toISOString()
   };
 
-  // --------------------------------------------------
-  // NOTIFICHE PUSH
-  // --------------------------------------------------
+  currentData.expenses.unshift(row);
+  await saveCache("expenses",currentData.expenses);
 
-  function updateNotificationStatus() {
-    if (!("Notification" in window)) {
-      $("notificationStatus").textContent =
-        "Le notifiche non sono supportate da questo browser.";
-      return;
-    }
+  renderExpenses(currentData.expenses,currentAttachments.expense);
+  renderHome();
 
-    const permission = Notification.permission;
+  await addToQueue({
+    type:"insert",
+    table:"household_expenses",
+    row
+  });
 
-    $("notificationStatus").textContent =
-      permission === "granted"
-        ? "Permesso notifiche concesso. Registrazione push in corso o attiva."
-        : permission === "denied"
-          ? "Notifiche bloccate. Modifica i permessi del dispositivo."
-          : "Le notifiche non sono ancora state autorizzate.";
+  if (files.length) {
+    await savePendingFiles("expense",row.id,files);
   }
 
-  function urlBase64ToUint8Array(base64String) {
-    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  $("expenseForm").reset();
+  await loadData();
+});
 
-    const base64 = (base64String + padding)
-      .replace(/-/g,"+")
-      .replace(/_/g,"/");
+// --------------------------------------------------
+// MODIFICA ED ELIMINAZIONE
+// --------------------------------------------------
 
-    const rawData = atob(base64);
+async function toggle(table,id,column,value) {
+  const key = {
+    tasks:"tasks",
+    shopping:"shopping",
+    household_expenses:"expenses"
+  }[table];
 
-    return Uint8Array.from(
-      rawData,
-      char => char.charCodeAt(0)
+  if (!key) return;
+
+  const item = currentData[key].find(row => row.id === id);
+  if (!item) return;
+
+  item[column] = value;
+
+  await saveCache(key,currentData[key]);
+
+  if (table === "tasks") {
+    renderTasks(currentData.tasks,currentAttachments.task);
+  }
+
+  if (table === "shopping") {
+    renderShopping(currentData.shopping);
+  }
+
+  if (table === "household_expenses") {
+    renderExpenses(currentData.expenses,currentAttachments.expense);
+  }
+
+  renderHome();
+
+  await addToQueue({
+    type:"update",
+    table,
+    row_id:id,
+    changes:{[column]:value}
+  });
+}
+
+async function remove(table,id,entityType = null) {
+  if (!confirm("Vuoi eliminare questo elemento?")) return;
+
+  const key = {
+    tasks:"tasks",
+    shopping:"shopping",
+    household_expenses:"expenses"
+  }[table];
+
+  if (!key) return;
+
+  if (entityType) {
+    await deleteEntityAttachments(entityType,id);
+  }
+
+  currentData[key] =
+    currentData[key].filter(item => item.id !== id);
+
+  await saveCache(key,currentData[key]);
+
+  if (table === "tasks") {
+    renderTasks(currentData.tasks,currentAttachments.task);
+  }
+
+  if (table === "shopping") {
+    renderShopping(currentData.shopping);
+  }
+
+  if (table === "household_expenses") {
+    renderExpenses(currentData.expenses,currentAttachments.expense);
+  }
+
+  renderHome();
+
+  await addToQueue({
+    type:"delete",
+    table,
+    row_id:id
+  });
+}
+
+window.homeApp = {
+  toggle,
+  remove,
+  removeShift
+};
+
+// --------------------------------------------------
+// NOTIFICHE PUSH
+// --------------------------------------------------
+
+function updateNotificationStatus() {
+  if (!("Notification" in window)) {
+    $("notificationStatus").textContent =
+      "Le notifiche non sono supportate da questo browser.";
+    return;
+  }
+
+  const permission = Notification.permission;
+
+  $("notificationStatus").textContent =
+    permission === "granted"
+      ? "Permesso notifiche concesso. Registrazione push in corso o attiva."
+      : permission === "denied"
+        ? "Notifiche bloccate. Modifica i permessi del dispositivo."
+        : "Le notifiche non sono ancora state autorizzate.";
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4-base64String.length%4)%4);
+
+  const base64 = (base64String+padding)
+    .replace(/-/g,"+")
+    .replace(/_/g,"/");
+
+  const rawData = atob(base64);
+
+  return Uint8Array.from(
+    rawData,
+    char => char.charCodeAt(0)
+  );
+}
+
+async function registerPushNotifications() {
+  if (!user) {
+    throw new Error("Accedi prima di registrare questo dispositivo.");
+  }
+
+  if (!navigator.onLine || localMode) {
+    throw new Error("Per registrare le notifiche serve una connessione Internet.");
+  }
+
+  if (
+    !("serviceWorker" in navigator) ||
+    !("PushManager" in window)
+  ) {
+    throw new Error(
+      "Questo dispositivo o browser non supporta le notifiche push."
     );
   }
 
-  async function registerPushNotifications() {
-    if (!user) {
-      throw new Error("Accedi prima di registrare questo dispositivo.");
-    }
-
-    if (!navigator.onLine || localMode) {
-      throw new Error("Per registrare le notifiche serve una connessione Internet.");
-    }
-
-    if (
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window)
-    ) {
-      throw new Error(
-        "Questo dispositivo o browser non supporta le notifiche push."
-      );
-    }
-
-    if (!("Notification" in window)) {
-      throw new Error("Le notifiche non sono supportate.");
-    }
-
-    if (!window.isSecureContext) {
-      throw new Error("Le notifiche richiedono una connessione HTTPS.");
-    }
-
-    if (Notification.permission !== "granted") {
-      throw new Error("Prima devi concedere il permesso per le notifiche.");
-    }
-
-    const registration =
-      await navigator.serviceWorker.register("./sw.js",{
-        scope:"./"
-      });
-
-    await navigator.serviceWorker.ready;
-
-    let subscription =
-      await registration.pushManager.getSubscription();
-
-    if (!subscription) {
-      subscription =
-        await registration.pushManager.subscribe({
-          userVisibleOnly:true,
-          applicationServerKey:
-            urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
-    }
-
-    const json = subscription.toJSON();
-
-    if (
-      !json.endpoint ||
-      !json.keys ||
-      !json.keys.p256dh ||
-      !json.keys.auth
-    ) {
-      throw new Error(
-        "Il dispositivo non ha restituito i dati necessari per le notifiche."
-      );
-    }
-
-    const {error} = await db
-      .from("web_push_subscriptions")
-      .upsert({
-        household_id:HOUSEHOLD_ID,
-        user_id:user.id,
-        endpoint:json.endpoint,
-        p256dh:json.keys.p256dh,
-        auth:json.keys.auth,
-        updated_at:new Date().toISOString()
-      },{
-        onConflict:"endpoint"
-      });
-
-    if (error) throw error;
-
-    return true;
+  if (!("Notification" in window)) {
+    throw new Error("Le notifiche non sono supportate.");
   }
 
-  $("enableNotifications").addEventListener("click",async () => {
-    if (!("Notification" in window)) {
-      alert("Questo browser non supporta le notifiche.");
-      return;
-    }
+  if (!window.isSecureContext) {
+    throw new Error("Le notifiche richiedono una connessione HTTPS.");
+  }
 
-    if (!user) {
-      alert("Accedi prima di attivare le notifiche.");
-      return;
-    }
+  if (Notification.permission !== "granted") {
+    throw new Error("Prima devi concedere il permesso per le notifiche.");
+  }
 
-    if (!navigator.onLine || localMode) {
-      alert("Per attivare le notifiche serve una connessione Internet.");
-      return;
-    }
+  const registration =
+    await navigator.serviceWorker.register("./sw.js",{
+      scope:"./"
+    });
 
-    try {
-      const permission = await Notification.requestPermission();
+  await navigator.serviceWorker.ready;
 
-      updateNotificationStatus();
+  let subscription =
+    await registration.pushManager.getSubscription();
 
-      if (permission !== "granted") {
-        alert(
-          "Permesso notifiche non concesso. " +
-          "Controlla le impostazioni del dispositivo."
-        );
-        return;
-      }
+  if (!subscription) {
+    subscription =
+      await registration.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:
+          urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+  }
 
-      await registerPushNotifications();
+  const json = subscription.toJSON();
 
-      $("notificationStatus").textContent =
-        "Notifiche push attive e dispositivo registrato.";
+  if (
+    !json.endpoint ||
+    !json.keys ||
+    !json.keys.p256dh ||
+    !json.keys.auth
+  ) {
+    throw new Error(
+      "Il dispositivo non ha restituito i dati necessari per le notifiche."
+    );
+  }
 
+  const {error} = await db
+    .from("web_push_subscriptions")
+    .upsert({
+      household_id:HOUSEHOLD_ID,
+      user_id:user.id,
+      endpoint:json.endpoint,
+      p256dh:json.keys.p256dh,
+      auth:json.keys.auth,
+      updated_at:new Date().toISOString()
+    },{
+      onConflict:"endpoint"
+    });
+
+  if (error) throw error;
+
+  return true;
+}
+
+$("enableNotifications").addEventListener("click",async () => {
+  if (!("Notification" in window)) {
+    alert("Questo browser non supporta le notifiche.");
+    return;
+  }
+
+  if (!user) {
+    alert("Accedi prima di attivare le notifiche.");
+    return;
+  }
+
+  if (!navigator.onLine || localMode) {
+    alert("Per attivare le notifiche serve una connessione Internet.");
+    return;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+
+    updateNotificationStatus();
+
+    if (permission !== "granted") {
       alert(
-        "Perfetto! Questo dispositivo è registrato " +
-        "per ricevere le notifiche di Casa."
+        "Permesso notifiche non concesso. " +
+        "Controlla le impostazioni del dispositivo."
       );
-
-    } catch (error) {
-      console.error("Errore notifiche push:",error);
-
-      $("notificationStatus").textContent =
-        "Non è stato possibile completare la registrazione push.";
-
-      alert(
-        "Non è stato possibile attivare le notifiche: " +
-        error.message
-      );
+      return;
     }
+
+    await registerPushNotifications();
+
+    $("notificationStatus").textContent =
+      "Notifiche push attive e dispositivo registrato.";
+
+    alert(
+      "Perfetto! Questo dispositivo è registrato " +
+      "per ricevere le notifiche di Casa."
+    );
+
+  } catch (error) {
+    console.error("Errore notifiche push:",error);
+
+    $("notificationStatus").textContent =
+      "Non è stato possibile completare la registrazione push.";
+
+    alert(
+      "Non è stato possibile attivare le notifiche: " +
+      error.message
+    );
+  }
+});
+
+// --------------------------------------------------
+// AUTENTICAZIONE
+// --------------------------------------------------
+
+$("loginForm").addEventListener("submit",async event => {
+  event.preventDefault();
+
+  if (!navigator.onLine) {
+    $("loginError").textContent =
+      "Per effettuare un nuovo accesso serve Internet. Se hai già effettuato l'accesso su questo dispositivo, ricarica l'app.";
+    return;
+  }
+
+  $("loginError").textContent = "Accesso in corso…";
+
+  const {data,error} = await db.auth.signInWithPassword({
+    email:$("email").value.trim(),
+    password:$("password").value
   });
 
-  // --------------------------------------------------
-  // AUTENTICAZIONE
-  // --------------------------------------------------
-
-  $("loginForm").addEventListener("submit",async event => {
-    event.preventDefault();
-
-    if (!navigator.onLine) {
-      $("loginError").textContent =
-        "Per effettuare un nuovo accesso serve Internet. Se hai già effettuato l'accesso su questo dispositivo, ricarica l'app.";
-      return;
-    }
-
-    $("loginError").textContent = "Accesso in corso…";
-
-    const {data,error} = await db.auth.signInWithPassword({
-      email:$("email").value.trim(),
-      password:$("password").value
-    });
-
-    if (error) {
-      $("loginError").textContent =
-        "Accesso non riuscito: " + error.message;
-      return;
-    }
-
-    user = data.user;
-    localMode = false;
-
-    await startApp();
-  });
-
-  async function logout() {
-    if (!navigator.onLine) {
-      alert("Per uscire dall'account serve una connessione Internet. Puoi chiudere l'app senza effettuare la disconnessione.");
-      return;
-    }
-
-    const {error} = await db.auth.signOut();
-
-    if (error) {
-      alert("Errore durante l'uscita: " + error.message);
-      return;
-    }
-
-    user = null;
-    localMode = false;
-
-    if (channel) {
-      await db.removeChannel(channel);
-      channel = null;
-    }
-
-    if (refreshTimer) {
-      clearInterval(refreshTimer);
-      refreshTimer = null;
-    }
-
-    showLogin();
+  if (error) {
+    $("loginError").textContent =
+      "Accesso non riuscito: " + error.message;
+    return;
   }
 
-  $("logout").addEventListener("click",logout);
-  $("settingsLogout").addEventListener("click",logout);
+  user = data.user;
+  localMode = false;
 
-  // --------------------------------------------------
-  // NAVIGAZIONE
-  // --------------------------------------------------
+  await startApp();
+});
 
-  function openTab(tab) {
-    document.querySelectorAll(".tabs button").forEach(button => {
-      button.classList.toggle(
-        "active",
-        button.dataset.tab === tab
-      );
-    });
-
-    document.querySelectorAll(".section").forEach(section => {
-      section.classList.toggle("active",section.id === tab);
-    });
-
-    if (tab === "shifts") {
-      loadShifts();
-    }
+async function logout() {
+  if (!navigator.onLine) {
+    alert("Per uscire dall'account serve una connessione Internet. Puoi chiudere l'app senza effettuare la disconnessione.");
+    return;
   }
 
+  const {error} = await db.auth.signOut();
+
+  if (error) {
+    alert("Errore durante l'uscita: " + error.message);
+    return;
+  }
+
+  if (user) {
+    await cacheDelete(
+      `${user.id}:${HOUSEHOLD_ID}:verified`
+    );
+  }
+
+  user = null;
+  localMode = false;
+
+  if (channel) {
+    await db.removeChannel(channel);
+    channel = null;
+  }
+
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+
+  showLogin();
+}
+
+$("logout").addEventListener("click",logout);
+$("settingsLogout").addEventListener("click",logout);
+
+// --------------------------------------------------
+// NAVIGAZIONE
+// --------------------------------------------------
+
+function openTab(tab) {
   document.querySelectorAll(".tabs button").forEach(button => {
-    button.addEventListener("click",() => openTab(button.dataset.tab));
+    button.classList.toggle(
+      "active",
+      button.dataset.tab === tab
+    );
   });
 
-  // --------------------------------------------------
-  // AVVIO ONLINE / OFFLINE
-  // --------------------------------------------------
+  document.querySelectorAll(".section").forEach(section => {
+    section.classList.toggle("active",section.id === tab);
+  });
 
-  async function startApp() {
-    if (starting || !user) return;
-
-    starting = true;
-    showApp();
-
-    try {
-      await openLocalDatabase();
-
-      $("shiftDate").value = localDate(new Date());
-      updateNotificationStatus();
-
-      if (!navigator.onLine) {
-        await startOffline();
-        return;
-      }
-
-      status("Verifica dell'account in corso…");
-
-      const {data:member,error:memberError} = await db
-        .from("household_members")
-        .select("household_id")
-        .eq("user_id",user.id)
-        .maybeSingle();
-
-      if (
-        memberError ||
-        !member ||
-        member.household_id !== HOUSEHOLD_ID
-      ) {
-        const allowed = await hasVerifiedAccess();
-
-        if (!allowed) {
-          status("Non è stato possibile verificare l'account. Accedi online e riprova.");
-          return;
-        }
-
-        await startOffline();
-        return;
-      }
-
-      localMode = false;
-
-      await saveVerifiedAccess();
-
-      const settingsOk = await loadSettings();
-
-      if (!settingsOk) {
-        if (await hasVerifiedAccess()) {
-          await startOffline();
-        } else {
-          status("Errore nel caricamento delle impostazioni.");
-        }
-        return;
-      }
-
-      if (
-        "Notification" in window &&
-        Notification.permission === "granted" &&
-        "serviceWorker" in navigator &&
-        "PushManager" in window
-      ) {
-        try {
-          await registerPushNotifications();
-
-          $("notificationStatus").textContent =
-            "Notifiche push attive e dispositivo registrato.";
-        } catch (error) {
-          console.error("Aggiornamento notifiche non riuscito:",error);
-        }
-      }
-
-      await syncQueue();
-      await loadData();
-      await loadShifts();
-
-      startRealtime();
-
-      if (refreshTimer) clearInterval(refreshTimer);
-
-      refreshTimer = setInterval(async () => {
-        if (navigator.onLine && !localMode) {
-          await refreshFromServer();
-        }
-      },30000);
-
-    } catch (error) {
-      console.error("Errore avvio app:",error);
-
-      if (await hasVerifiedAccess()) {
-        await startOffline();
-      } else {
-        status("Impossibile avviare l'app. Effettua il primo accesso online.");
-      }
-
-    } finally {
-      starting = false;
-    }
+  if (tab === "shifts") {
+    loadShifts();
   }
+}
 
-  async function startOffline() {
-    const allowed = await hasVerifiedAccess();
+document.querySelectorAll(".tabs button").forEach(button => {
+  button.addEventListener("click",() => openTab(button.dataset.tab));
+});
 
-    if (!allowed) {
-      showLogin();
-      $("loginError").textContent =
-        "Per utilizzare Casa offline devi prima accedere online da questo dispositivo.";
+// --------------------------------------------------
+// AVVIO ONLINE / OFFLINE
+// --------------------------------------------------
+
+async function startApp() {
+  if (starting || !user) return;
+
+  starting = true;
+  showApp();
+
+  try {
+    await openLocalDatabase();
+
+    $("shiftDate").value = localDate(new Date());
+    updateNotificationStatus();
+
+    if (!navigator.onLine) {
+      await startOffline();
       return;
     }
 
-    localMode = true;
+    status("Verifica dell'account in corso…");
 
-    const savedSettings = await readCache("settings");
-
-    if (savedSettings) {
-      settings = savedSettings;
-      populateOptions();
-      updateAccountLabels();
-    }
-
-    await loadDataFromCache();
-
-    const week = getWeekRange();
-    currentData.shifts =
-      await readCache("shifts_" + week.start) || [];
-
-    renderWeekLabel();
-    renderShifts();
-    renderHome();
-
-    status("Modalità offline · dati salvati su questo dispositivo");
-
-    if (refreshTimer) {
-      clearInterval(refreshTimer);
-      refreshTimer = null;
-    }
-
-    if (channel) {
-      await db.removeChannel(channel);
-      channel = null;
-    }
-  }
-
-  function startRealtime() {
-    if (!navigator.onLine || localMode) return;
-
-    if (channel) {
-      db.removeChannel(channel);
-      channel = null;
-    }
-
-    channel = db.channel("casa-romito-pindemonte")
-
-      .on(
-        "postgres_changes",
-        {event:"*",schema:"public",table:"tasks"},
-        () => loadData()
-      )
-
-      .on(
-        "postgres_changes",
-        {event:"*",schema:"public",table:"shopping"},
-        () => loadData()
-      )
-
-      .on(
-        "postgres_changes",
-        {event:"*",schema:"public",table:"household_expenses"},
-        () => loadData()
-      )
-
-      .on(
-        "postgres_changes",
-        {event:"*",schema:"public",table:"attachments"},
-        () => loadData()
-      )
-
-      .on(
-        "postgres_changes",
-        {event:"*",schema:"public",table:"work_shifts"},
-        () => loadShifts()
-      )
-
-      .on(
-        "postgres_changes",
-        {event:"*",schema:"public",table:"household_settings"},
-        async () => {
-          await loadSettings();
-          await loadData();
-          await loadShifts();
-        }
-      )
-
-      .subscribe();
-  }
-
-  // --------------------------------------------------
-  // RITORNO DELLA CONNESSIONE
-  // --------------------------------------------------
-
-  window.addEventListener("offline",() => {
-    if (!user) return;
-
-    localMode = true;
-
-    if (channel) {
-      db.removeChannel(channel);
-      channel = null;
-    }
-
-    if (refreshTimer) {
-      clearInterval(refreshTimer);
-      refreshTimer = null;
-    }
-
-    status("Modalità offline · le modifiche saranno sincronizzate al ritorno di Internet");
-  });
-
-  window.addEventListener("online",async () => {
-    if (!user) return;
-
-    status("Connessione ripristinata · sincronizzazione in corso…");
-
-    localMode = false;
-
-    const {data:member,error} = await db
+    const {data:member,error:memberError} = await db
       .from("household_members")
       .select("household_id")
       .eq("user_id",user.id)
       .maybeSingle();
 
-    if (
-      error ||
-      !member ||
-      member.household_id !== HOUSEHOLD_ID
-    ) {
-      localMode = true;
-      status("Non è stato possibile verificare la connessione. I dati locali sono conservati.");
+    if (memberError) {
+      // Se la verifica fallisce per un problema di rete,
+      // si può usare solo un accesso già verificato.
+      if (await hasVerifiedAccess()) {
+        await startOffline();
+      } else {
+        showLogin();
+        $("loginError").textContent =
+          "Non è stato possibile verificare l'account. Effettua l'accesso online.";
+      }
       return;
     }
 
+    if (!member || member.household_id !== HOUSEHOLD_ID) {
+      // Un account non autorizzato non può usare la cache.
+      await cacheDelete(`${user.id}:${HOUSEHOLD_ID}:verified`);
+      showLogin();
+      $("loginError").textContent =
+        "Questo account non è autorizzato ad accedere a questa casa.";
+      return;
+    }
+
+    localMode = false;
+
     await saveVerifiedAccess();
+
+    const settingsOk = await loadSettings();
+
+    if (!settingsOk) {
+      await startOffline();
+      return;
+    }
+
+    if (
+      "Notification" in window &&
+      Notification.permission === "granted" &&
+      "serviceWorker" in navigator &&
+      "PushManager" in window
+    ) {
+      try {
+        await registerPushNotifications();
+
+        $("notificationStatus").textContent =
+          "Notifiche push attive e dispositivo registrato.";
+      } catch (error) {
+        console.error("Aggiornamento notifiche non riuscito:",error);
+      }
+    }
+
     await syncQueue();
-    await loadSettings();
     await loadData();
     await loadShifts();
 
@@ -2409,33 +2289,224 @@ footer {
         await refreshFromServer();
       }
     },30000);
-  });
 
-  // --------------------------------------------------
-  // RECUPERO SESSIONE SALVATA
-  // --------------------------------------------------
+  } catch (error) {
+    console.error("Errore avvio app:",error);
 
-  function getStoredUserFallback() {
-    try {
-      const raw = localStorage.getItem(
-        "sb-kxzxjusmnpsnsxyuyydi-auth-token"
-      );
-
-      if (!raw) return null;
-
-      const parsed = JSON.parse(raw);
-
-      return (
-        parsed.user ||
-        parsed.currentSession?.user ||
-        null
-      );
-    } catch {
-      return null;
+    if (await hasVerifiedAccess()) {
+      await startOffline();
+    } else {
+      showLogin();
+      $("loginError").textContent =
+        "Impossibile avviare l'app. Effettua il primo accesso online.";
     }
+
+  } finally {
+    starting = false;
+  }
+}
+
+async function startOffline() {
+  const allowed = await hasVerifiedAccess();
+
+  if (!allowed) {
+    showLogin();
+    $("loginError").textContent =
+      "Per utilizzare Casa offline devi prima accedere online da questo dispositivo.";
+    return;
   }
 
-  db.auth.getSession().then(async ({data,error}) => {
+  localMode = true;
+
+  const savedSettings = await readCache("settings");
+
+  if (savedSettings) {
+    settings = savedSettings;
+    populateOptions();
+    updateAccountLabels();
+  }
+
+  await loadDataFromCache();
+
+  const week = getWeekRange();
+  currentData.shifts =
+    await readCache("shifts_" + week.start) || [];
+
+  currentData.shifts =
+    await applyPendingChanges("work_shifts",currentData.shifts);
+
+  renderWeekLabel();
+  renderShifts();
+  renderHome();
+
+  status("Modalità offline · dati salvati su questo dispositivo");
+
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+
+  if (channel) {
+    await db.removeChannel(channel);
+    channel = null;
+  }
+}
+
+function startRealtime() {
+  if (!navigator.onLine || localMode) return;
+
+  if (channel) {
+    db.removeChannel(channel);
+    channel = null;
+  }
+
+  channel = db.channel("casa-romito-pindemonte")
+
+    .on(
+      "postgres_changes",
+      {event:"*",schema:"public",table:"tasks"},
+      () => loadData()
+    )
+
+    .on(
+      "postgres_changes",
+      {event:"*",schema:"public",table:"shopping"},
+      () => loadData()
+    )
+
+    .on(
+      "postgres_changes",
+      {event:"*",schema:"public",table:"household_expenses"},
+      () => loadData()
+    )
+
+    .on(
+      "postgres_changes",
+      {event:"*",schema:"public",table:"attachments"},
+      () => loadData()
+    )
+
+    .on(
+      "postgres_changes",
+      {event:"*",schema:"public",table:"work_shifts"},
+      () => loadShifts()
+    )
+
+    .on(
+      "postgres_changes",
+      {event:"*",schema:"public",table:"household_settings"},
+      async () => {
+        await loadSettings();
+        await loadData();
+        await loadShifts();
+      }
+    )
+
+    .subscribe();
+}
+
+// --------------------------------------------------
+// RITORNO DELLA CONNESSIONE
+// --------------------------------------------------
+
+window.addEventListener("offline",() => {
+  if (!user) return;
+
+  localMode = true;
+
+  if (channel) {
+    db.removeChannel(channel);
+    channel = null;
+  }
+
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+
+  status("Modalità offline · le modifiche saranno sincronizzate al ritorno di Internet");
+});
+
+window.addEventListener("online",async () => {
+  if (!user) return;
+
+  status("Connessione ripristinata · verifica dell'account…");
+
+  const {data:member,error} = await db
+    .from("household_members")
+    .select("household_id")
+    .eq("user_id",user.id)
+    .maybeSingle();
+
+  if (error) {
+    localMode = true;
+    status("Non è stato possibile verificare la connessione. I dati locali sono conservati.");
+    return;
+  }
+
+  if (!member || member.household_id !== HOUSEHOLD_ID) {
+    await cacheDelete(`${user.id}:${HOUSEHOLD_ID}:verified`);
+    localMode = true;
+    showLogin();
+    $("loginError").textContent =
+      "L'account non risulta più autorizzato ad accedere a questa casa.";
+    return;
+  }
+
+  localMode = false;
+
+  await saveVerifiedAccess();
+
+  // Prima invia le operazioni locali in ordine.
+  await syncQueue();
+
+  // Poi aggiorna i dati dal cloud.
+  await loadSettings();
+  await loadData();
+  await loadShifts();
+
+  startRealtime();
+
+  if (refreshTimer) clearInterval(refreshTimer);
+
+  refreshTimer = setInterval(async () => {
+    if (navigator.onLine && !localMode) {
+      await refreshFromServer();
+    }
+  },30000);
+});
+
+// --------------------------------------------------
+// RECUPERO SESSIONE SALVATA
+// --------------------------------------------------
+
+function getStoredUserFallback() {
+  try {
+    const raw = localStorage.getItem(
+      "sb-kxzxjusmnpsnsxyuyydi-auth-token"
+    );
+
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+
+    return (
+      parsed.user ||
+      parsed.currentSession?.user ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function initializeApp() {
+  // Registra il service worker anche se le notifiche non sono attive.
+  await registerAppServiceWorker();
+
+  try {
+    const {data,error} = await db.auth.getSession();
+
     if (data && data.session && data.session.user) {
       user = data.session.user;
       await startApp();
@@ -2456,7 +2527,8 @@ footer {
       $("loginError").textContent =
         "Per accedere serve una connessione Internet oppure una sessione già salvata su questo dispositivo.";
     }
-  }).catch(async error => {
+
+  } catch (error) {
     console.error("Recupero sessione:",error);
 
     if (!navigator.onLine) {
@@ -2467,15 +2539,18 @@ footer {
         await startApp();
       }
     }
-  });
+  }
+}
 
-  db.auth.onAuthStateChange(event => {
-    if (event === "SIGNED_OUT") {
-      user = null;
-      localMode = false;
-      showLogin();
-    }
-  });
+db.auth.onAuthStateChange(event => {
+  if (event === "SIGNED_OUT") {
+    user = null;
+    localMode = false;
+    showLogin();
+  }
+});
+
+initializeApp();
 
 })();
 </script>
