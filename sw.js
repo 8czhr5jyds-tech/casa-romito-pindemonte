@@ -1,5 +1,5 @@
 
-const CACHE_NAME = "casa-romito-offline-v1";
+const CACHE_NAME = "casa-romito-offline-v2";
 
 const APP_FILES = [
   "./",
@@ -16,15 +16,21 @@ self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
 
-    await cache.addAll(
-      APP_FILES.map(file => new Request(
-        new URL(file, self.registration.scope),
-        { cache: "reload" }
-      ))
-    );
+    // Salva separatamente i file disponibili.
+    for (const file of APP_FILES) {
+      try {
+        const url = new URL(file, self.registration.scope);
+        const response = await fetch(url, { cache: "reload" });
 
-    // Prova a memorizzare anche la libreria Supabase.
-    // Se non è raggiungibile, l'installazione continua.
+        if (response.ok) {
+          await cache.put(url.href, response);
+        }
+      } catch (error) {
+        console.log("File non memorizzato:", file, error);
+      }
+    }
+
+    // Memorizza la libreria Supabase.
     try {
       const response = await fetch(SUPABASE_SDK);
 
@@ -32,7 +38,7 @@ self.addEventListener("install", event => {
         await cache.put(SUPABASE_SDK, response);
       }
     } catch (error) {
-      console.log("Libreria Supabase non memorizzata:", error);
+      console.log("Supabase SDK non memorizzato:", error);
     }
 
     await self.skipWaiting();
@@ -65,8 +71,11 @@ self.addEventListener("fetch", event => {
 
   const url = new URL(request.url);
 
-  // Libreria Supabase: cache prima, rete dopo.
-  if (request.url === SUPABASE_SDK) {
+  // LIBRERIA SUPABASE
+  if (
+    url.origin === "https://cdn.jsdelivr.net" &&
+    url.pathname === "/npm/@supabase/supabase-js@2.118.0"
+  ) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
       const cached = await cache.match(SUPABASE_SDK);
@@ -92,10 +101,10 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // Non memorizzare richieste API, autenticazione o dati privati.
+  // NON MEMORIZZARE API, AUTENTICAZIONE O DATI PRIVATI
   if (url.origin !== self.location.origin) return;
 
-  // Navigazione: prova la rete e usa la pagina salvata se offline.
+  // NAVIGAZIONE: RETE PRIMA, CACHE IN CASO DI OFFLINE
   if (request.mode === "navigate") {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
@@ -104,15 +113,25 @@ self.addEventListener("fetch", event => {
         const response = await fetch(request);
 
         if (response.ok) {
-          await cache.put("./index.html", response.clone());
+          await cache.put(
+            new URL("./index.html", self.registration.scope).href,
+            response.clone()
+          );
         }
 
         return response;
       } catch (error) {
         return (
           await cache.match(request) ||
-          await cache.match("./index.html") ||
-          await cache.match("./")
+          await cache.match(
+            new URL("./index.html", self.registration.scope).href
+          ) ||
+          await cache.match(
+            new URL("./", self.registration.scope).href
+          ) ||
+          new Response("App non disponibile offline.", {
+            status: 503
+          })
         );
       }
     })());
@@ -120,17 +139,21 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // Risorse locali: usa la cache e aggiorna quando possibile.
+  // RISORSE LOCALI: CACHE PRIMA, RETE COME AGGIORNAMENTO
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
     const cached = await cache.match(request);
 
     if (cached) {
-      fetch(request).then(response => {
-        if (response.ok) {
-          cache.put(request, response);
-        }
-      }).catch(() => {});
+      event.waitUntil(
+        fetch(request)
+          .then(response => {
+            if (response.ok) {
+              return cache.put(request, response);
+            }
+          })
+          .catch(() => {})
+      );
 
       return cached;
     }
@@ -144,10 +167,15 @@ self.addEventListener("fetch", event => {
 
       return response;
     } catch (error) {
-      return new Response("Risorsa non disponibile offline.", {
-        status: 503,
-        headers: { "Content-Type": "text/plain; charset=utf-8" }
-      });
+      return new Response(
+        "Risorsa non disponibile offline.",
+        {
+          status: 503,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8"
+          }
+        }
+      );
     }
   })());
 });
