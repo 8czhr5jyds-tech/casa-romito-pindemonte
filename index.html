@@ -178,25 +178,97 @@ footer {
   font-size:13px;
   text-align:center;
 }
-.person-title {
-  background:var(--pale);
-  color:var(--dark);
-  padding:12px;
-  border-radius:12px;
-  margin:15px 0 8px;
-  font-weight:700;
+.shift-people-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  align-items:start;
 }
-.shift-card {
-  background:white;
+.person-shift-card {
+  min-width:0;
+  overflow:hidden;
+  background:#fff;
   border:1px solid var(--border);
-  padding:12px;
-  border-radius:12px;
-  margin:8px 0;
+  border-radius:16px;
+  box-shadow:0 3px 14px #1231;
+}
+.person-shift-card.linda {border-color:#f3cfe4}
+.person-shift-card.francesco {border-color:#c9e2fb}
+.person-shift-heading {
+  min-height:64px;
   display:flex;
   align-items:center;
-  gap:8px;
+  justify-content:center;
+  padding:10px 5px;
+  font-size:clamp(14px,3.7vw,19px);
+  font-weight:750;
+  text-align:center;
+  overflow-wrap:anywhere;
 }
-.shift-card .details {flex:1;min-width:0}
+.person-shift-card.linda .person-shift-heading {
+  background:#fff0f8;color:#9b4775;
+}
+.person-shift-card.francesco .person-shift-heading {
+  background:#edf6ff;color:#326b9d;
+}
+.person-shift-list {padding:5px}
+.day-shift-button {
+  width:100%;
+  min-width:0;
+  min-height:66px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:center;
+  gap:4px;
+  padding:7px 5px;
+  margin:4px 0;
+  border:1px solid #e8eeee;
+  border-radius:11px;
+  background:#fff;
+  color:var(--text);
+  text-align:left;
+  font-weight:500;
+}
+.day-shift-top {display:flex;align-items:center;justify-content:space-between;gap:3px}
+.day-name {font-size:11px;font-weight:750;line-height:1.1}
+.day-chevron {font-size:16px;color:var(--muted);flex:0 0 auto}
+.shift-status {
+  display:block;
+  width:100%;
+  border-radius:9px;
+  padding:5px 4px;
+  font-size:10px;
+  font-weight:750;
+  line-height:1.2;
+  text-align:center;
+  overflow-wrap:anywhere;
+}
+.shift-status.morning {background:#fff1d8;color:#8c5a00}
+.shift-status.evening {background:#eee8ff;color:#51409b}
+.shift-status.custom {background:#e4f2ff;color:#245d91}
+.shift-status.free {background:#e5f8e9;color:#26713c}
+.shift-status.empty {background:#f1f4f4;color:#758384}
+.shift-time {display:block;font-size:9px;font-weight:600;margin-top:2px}
+.shift-editor-backdrop {
+  position:fixed;inset:0;z-index:1000;
+  display:flex;align-items:center;justify-content:center;
+  padding:18px;background:#10252688;
+}
+.shift-editor-card {
+  width:min(100%,420px);max-height:90vh;overflow:auto;
+  padding:18px;background:#fff;border-radius:18px;
+  box-shadow:0 12px 40px #0003;
+}
+.shift-editor-actions {display:flex;gap:8px;margin-top:10px}
+.shift-editor-actions button {flex:1}
+@media(max-width:370px) {
+  .shift-people-grid {gap:6px}
+  .person-shift-heading {font-size:13px}
+  .day-shift-button {min-height:62px;padding:6px 3px}
+  .day-name {font-size:10px}
+  .shift-status {font-size:9px}
+}
 .attachment-list {
   display:flex;
   flex-wrap:wrap;
@@ -336,44 +408,45 @@ footer {
       </button>
     </div>
 
-    <div class="panel">
-      <h3>＋ Aggiungi turno lavorativo</h3>
+    <div class="shift-people-grid">
+      <article class="person-shift-card linda">
+        <div class="person-shift-heading" id="lindaShiftTitle">Linda</div>
+        <div class="person-shift-list" id="lindaShifts"></div>
+      </article>
 
-      <form id="shiftForm">
-        <label class="form-label" for="shiftPerson">Persona</label>
-        <select id="shiftPerson" required></select>
-
-        <label class="form-label" for="shiftDate">Giorno</label>
-        <input id="shiftDate" type="date" required>
-
-        <label class="form-label" for="shiftType">Tipo di turno</label>
-        <select id="shiftType" required>
-          <option value="morning">MATTINA</option>
-          <option value="evening">SERA</option>
-          <option value="custom" selected>ORARIO PERSONALIZZATO</option>
-        </select>
-
-        <div id="customShiftTimes" class="row">
-          <div style="flex:1">
-            <label class="form-label" for="shiftStart">Inizio</label>
-            <input id="shiftStart" type="time">
-          </div>
-          <div style="flex:1">
-            <label class="form-label" for="shiftEnd">Fine</label>
-            <input id="shiftEnd" type="time">
-          </div>
-        </div>
-
-        <textarea id="shiftNotes" placeholder="Note facoltative"></textarea>
-        <button class="full" type="submit">＋ Salva turno</button>
-      </form>
+      <article class="person-shift-card francesco">
+        <div class="person-shift-heading" id="francescoShiftTitle">Francesco</div>
+        <div class="person-shift-list" id="francescoShifts"></div>
+      </article>
     </div>
 
-    <div class="card">
-      <div class="person-title" id="francescoShiftTitle">Francesco</div>
-      <div id="francescoShifts"></div>
-      <div class="person-title" id="lindaShiftTitle">Linda</div>
-      <div id="lindaShifts"></div>
+    <div id="shiftEditor" class="shift-editor-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="shiftEditorTitle">
+      <div class="shift-editor-card">
+        <h2 id="shiftEditorTitle">Modifica turno</h2>
+        <p id="shiftEditorDate" class="muted"></p>
+        <form id="shiftEditorForm">
+          <label class="form-label" for="editorShiftType">Tipo di turno</label>
+          <select id="editorShiftType" required>
+            <option value="morning">☀️ Mattina</option>
+            <option value="evening">🌙 Sera</option>
+            <option value="custom">🕒 Orari personalizzati</option>
+            <option value="free">🌴 Libero</option>
+          </select>
+          <div id="editorCustomTimes">
+            <label class="form-label" for="editorShiftStart">Ora di inizio</label>
+            <input id="editorShiftStart" type="time">
+            <label class="form-label" for="editorShiftEnd">Ora di fine</label>
+            <input id="editorShiftEnd" type="time">
+          </div>
+          <label class="form-label" for="editorShiftNotes">Note (facoltative)</label>
+          <textarea id="editorShiftNotes" placeholder="Aggiungi una nota…"></textarea>
+          <div class="shift-editor-actions">
+            <button type="submit">Salva turno</button>
+            <button type="button" id="closeShiftEditor" class="secondary">Annulla</button>
+          </div>
+          <button type="button" id="clearShift" class="danger full small" style="margin-top:9px">Rimuovi turno dal giorno</button>
+        </form>
+      </div>
     </div>
   </section>
 
@@ -512,7 +585,7 @@ footer {
     <div class="panel">
       <h3>ℹ️ Informazioni sull'app</h3>
       <p><strong>Casa Romito/Pindemonte</strong></p>
-      <p class="muted">Versione 2.2</p>
+      <p class="muted">Versione 2.3</p>
       <p class="muted">Applicazione privata per l'organizzazione familiare.</p>
       <p class="muted">Dati sincronizzati attraverso Supabase.</p>
     </div>
@@ -646,15 +719,6 @@ footer {
       </option>
     `;
 
-    $("shiftPerson").innerHTML = `
-      <option value="${safe(settings.francesco_name)}">
-        ${safe(settings.francesco_name)}
-      </option>
-      <option value="${safe(settings.linda_name)}">
-        ${safe(settings.linda_name)}
-      </option>
-    `;
-
     $("francescoShiftTitle").textContent = settings.francesco_name;
     $("lindaShiftTitle").textContent = settings.linda_name;
   }
@@ -748,41 +812,168 @@ footer {
     renderHome();
   }
 
-  function renderShifts() {
-    const people = [
-      {name:settings.francesco_name,target:"francescoShifts"},
-      {name:settings.linda_name,target:"lindaShifts"}
-    ];
+  const WEEK_DAYS = [
+    {name:"Lunedì",short:"Lun",offset:0},
+    {name:"Martedì",short:"Mar",offset:1},
+    {name:"Mercoledì",short:"Mer",offset:2},
+    {name:"Giovedì",short:"Gio",offset:3},
+    {name:"Venerdì",short:"Ven",offset:4},
+    {name:"Sabato",short:"Sab",offset:5},
+    {name:"Domenica",short:"Dom",offset:6}
+  ];
 
-    people.forEach(person => {
-      const shifts = currentData.shifts.filter(
-        shift => assignedName(shift.person) === person.name
-      );
-
-      const list = $(person.target);
-
-      if (!shifts.length) {
-        list.innerHTML = '<p class="muted">Nessun turno questa settimana.</p>';
-        return;
-      }
-
-      list.innerHTML = shifts.map(shift => `
-        <div class="shift-card">
-          <div class="details">
-            <strong>${safe(formatDate(shift.shift_date))}</strong>
-            <div class="meta">
-              ${shift.shift_type === "morning" ? "MATTINA" :
-                shift.shift_type === "evening" ? "SERA" :
-                `${safe((shift.start_time || "").slice(0,5))} – ${safe((shift.end_time || "").slice(0,5))}`}
-            </div>
-            ${shift.notes ? `<div class="meta">${safe(shift.notes)}</div>` : ""}
-          </div>
-          <button class="danger small"
-            onclick="window.homeApp.removeShift('${safe(shift.id)}')">✕</button>
-        </div>
-      `).join("");
-    });
+  function shiftLabel(shift) {
+    if (!shift) return {label:"Da definire",kind:"empty",time:""};
+    if (shift.shift_type === "morning") return {label:"Mattina",kind:"morning",time:""};
+    if (shift.shift_type === "evening") return {label:"Sera",kind:"evening",time:""};
+    if (shift.shift_type === "free") return {label:"Libero",kind:"free",time:""};
+    return {
+      label:"Personalizzati",
+      kind:"custom",
+      time:`${(shift.start_time || "").slice(0,5)} – ${(shift.end_time || "").slice(0,5)}`
+    };
   }
+
+  function renderPersonShifts(person, target) {
+    const week = getWeekRange();
+    const list = $(target);
+
+    list.innerHTML = WEEK_DAYS.map(day => {
+      const date = new Date(week.monday);
+      date.setDate(date.getDate() + day.offset);
+      const dateValue = localDate(date);
+      const shift = currentData.shifts.find(item =>
+        item.person === person && item.shift_date === dateValue
+      );
+      const display = shiftLabel(shift);
+
+      return `
+        <button type="button" class="day-shift-button"
+          data-person="${person}" data-date="${dateValue}"
+          aria-label="Modifica turno ${day.name} ${person}">
+          <span class="day-shift-top">
+            <span class="day-name">${day.name}</span>
+            <span class="day-chevron">›</span>
+          </span>
+          <span class="shift-status ${display.kind}">
+            ${display.label}
+            ${display.time ? `<span class="shift-time">${safe(display.time)}</span>` : ""}
+          </span>
+        </button>
+      `;
+    }).join("");
+  }
+
+  function renderShifts() {
+    $("francescoShiftTitle").textContent = settings.francesco_name;
+    $("lindaShiftTitle").textContent = settings.linda_name;
+    renderPersonShifts("Linda","lindaShifts");
+    renderPersonShifts("Francesco","francescoShifts");
+  }
+
+  let editingShift = {person:null,date:null,shift:null};
+
+  function updateEditorTimeFields() {
+    const isCustom = $("editorShiftType").value === "custom";
+    $("editorCustomTimes").classList.toggle("hidden",!isCustom);
+    $("editorShiftStart").required = isCustom;
+    $("editorShiftEnd").required = isCustom;
+  }
+
+  function openShiftEditor(person,date) {
+    const shift = currentData.shifts.find(item =>
+      item.person === person && item.shift_date === date
+    ) || null;
+
+    editingShift = {person,date,shift};
+    $("shiftEditorTitle").textContent =
+      person === "Linda" ? settings.linda_name : settings.francesco_name;
+    $("shiftEditorDate").textContent =
+      new Date(date + "T12:00:00").toLocaleDateString("it-IT",{
+        weekday:"long",day:"numeric",month:"long",year:"numeric"
+      });
+    $("editorShiftType").value = shift?.shift_type || "morning";
+    $("editorShiftStart").value = (shift?.start_time || "").slice(0,5);
+    $("editorShiftEnd").value = (shift?.end_time || "").slice(0,5);
+    $("editorShiftNotes").value = shift?.notes || "";
+    $("clearShift").classList.toggle("hidden",!shift);
+    updateEditorTimeFields();
+    $("shiftEditor").classList.remove("hidden");
+  }
+
+  function closeShiftEditor() {
+    $("shiftEditor").classList.add("hidden");
+    editingShift = {person:null,date:null,shift:null};
+  }
+
+  ["lindaShifts","francescoShifts"].forEach(id => {
+    $(id).addEventListener("click",event => {
+      const button = event.target.closest("button[data-person][data-date]");
+      if (!button) return;
+      openShiftEditor(button.dataset.person,button.dataset.date);
+    });
+  });
+
+  $("editorShiftType").addEventListener("change",updateEditorTimeFields);
+  $("closeShiftEditor").addEventListener("click",closeShiftEditor);
+  $("shiftEditor").addEventListener("click",event => {
+    if (event.target === $("shiftEditor")) closeShiftEditor();
+  });
+
+  $("shiftEditorForm").addEventListener("submit",async event => {
+    event.preventDefault();
+    if (!editingShift.person || !editingShift.date) return;
+
+    const shiftType = $("editorShiftType").value;
+    const start = shiftType === "custom" ? $("editorShiftStart").value : null;
+    const end = shiftType === "custom" ? $("editorShiftEnd").value : null;
+
+    if (shiftType === "custom" && (!start || !end)) {
+      alert("Inserisci l'orario di inizio e di fine.");
+      return;
+    }
+    if (shiftType === "custom" && end <= start) {
+      alert("L'orario di fine deve essere successivo all'inizio.");
+      return;
+    }
+
+    const {error} = await db.from("work_shifts").upsert({
+      household_id:HOUSEHOLD_ID,
+      person:editingShift.person,
+      shift_date:editingShift.date,
+      shift_type:shiftType,
+      start_time:start,
+      end_time:end,
+      notes:$("editorShiftNotes").value.trim() || null
+    },{onConflict:"household_id,person,shift_date"});
+
+    if (error) {
+      alert("Errore nel salvataggio del turno: " + error.message);
+      return;
+    }
+
+    closeShiftEditor();
+    await loadShifts();
+  });
+
+  $("clearShift").addEventListener("click",async () => {
+    if (!editingShift.person || !editingShift.date) return;
+    if (!confirm("Vuoi rimuovere il turno da questo giorno?")) return;
+
+    const {error} = await db.from("work_shifts")
+      .delete()
+      .eq("household_id",HOUSEHOLD_ID)
+      .eq("person",editingShift.person)
+      .eq("shift_date",editingShift.date);
+
+    if (error) {
+      alert("Errore durante la rimozione del turno: " + error.message);
+      return;
+    }
+
+    closeShiftEditor();
+    await loadShifts();
+  });
 
   $("previousWeek").addEventListener("click",async () => {
     weekOffset--;
@@ -795,55 +986,6 @@ footer {
   });
 
   $("currentWeek").addEventListener("click",async () => {
-    weekOffset = 0;
-    await loadShifts();
-  });
-
-  function updateShiftTimeFields() {
-    const isCustom = $("shiftType").value === "custom";
-    $("customShiftTimes").classList.toggle("hidden",!isCustom);
-    $("shiftStart").required = isCustom;
-    $("shiftEnd").required = isCustom;
-  }
-
-  $("shiftType").addEventListener("change",updateShiftTimeFields);
-  updateShiftTimeFields();
-
-  $("shiftForm").addEventListener("submit",async event => {
-    event.preventDefault();
-
-    const date = $("shiftDate").value;
-    const shiftType = $("shiftType").value;
-    const start = shiftType === "custom" ? $("shiftStart").value : null;
-    const end = shiftType === "custom" ? $("shiftEnd").value : null;
-
-    if (!date) return;
-    if (shiftType === "custom" && (!start || !end)) return;
-
-    if (shiftType === "custom" && end <= start) {
-      alert("L'orario di fine deve essere successivo all'inizio.");
-      return;
-    }
-
-    const {error} = await db.from("work_shifts").insert({
-      household_id:HOUSEHOLD_ID,
-      person:$("shiftPerson").value,
-      shift_date:date,
-      shift_type:shiftType,
-      start_time:start,
-      end_time:end,
-      notes:$("shiftNotes").value.trim() || null
-    });
-
-    if (error) {
-      alert("Errore nel salvataggio del turno: " + error.message);
-      return;
-    }
-
-    $("shiftForm").reset();
-    $("shiftType").value = "custom";
-    updateShiftTimeFields();
-    $("shiftDate").value = localDate(new Date());
     weekOffset = 0;
     await loadShifts();
   });
@@ -1485,7 +1627,6 @@ footer {
     const settingsOk = await loadSettings();
     if (!settingsOk) return;
 
-    $("shiftDate").value = localDate(new Date());
     updateNotificationStatus();
 
     await loadData();
