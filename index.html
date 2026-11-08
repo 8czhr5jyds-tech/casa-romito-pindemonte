@@ -277,6 +277,11 @@ footer {
 .child-entry .meta {line-height:1.45}
 .child-entry .entry-actions {display:flex;gap:5px;align-items:center}
 .child-entry .entry-actions button {padding:6px 8px}
+.shift-modal {position:fixed;inset:0;z-index:1000;background:rgba(18,35,38,.42);display:flex;align-items:flex-end;justify-content:center;padding:0;overflow-y:auto}
+.shift-editor-panel {width:min(100%,680px);max-height:88vh;overflow-y:auto;margin:0 auto;padding:22px 18px calc(22px + env(safe-area-inset-bottom));border-radius:26px 26px 0 0;box-shadow:0 -12px 45px rgba(0,0,0,.18)}
+.shift-day {cursor:pointer;transition:transform .12s,box-shadow .12s}
+.shift-day:active {transform:scale(.985);box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.shift-day .shift-edit {pointer-events:none}
 .shift-days {display:grid;gap:6px}
 .shift-day {display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:7px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:11px;background:#fff}
 .shift-day .day-name {font-size:12px;color:var(--muted);font-weight:700}
@@ -397,7 +402,7 @@ footer {
   <section id="shifts" class="section">
     <div class="panel">
       <h2>🗓️ Turni della settimana</h2>
-      <p class="muted">Linda e Francesco, ciascuno nella propria scheda settimanale.</p>
+      <p class="muted">Francesco e Linda, ciascuno nella propria scheda settimanale.</p>
       <div class="week-navigation">
         <button id="previousWeek" class="secondary small">←</button>
         <strong id="weekLabel"></strong>
@@ -405,8 +410,12 @@ footer {
       </div>
       <button id="currentWeek" class="secondary small full">Torna alla settimana attuale</button>
     </div>
-    <div class="panel">
-      <h3 id="shiftFormHeading">＋ Aggiungi turno</h3>
+    <div id="shiftEditorModal" class="shift-modal hidden" role="dialog" aria-modal="true" aria-labelledby="shiftFormHeading">
+      <div class="panel shift-editor-panel">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <h3 id="shiftFormHeading">Modifica turno</h3>
+        <button class="secondary small" type="button" id="closeShiftEditor" aria-label="Chiudi">✕</button>
+      </div>
       <form id="shiftForm">
         <input type="hidden" id="shiftEditId">
         <label class="form-label" for="shiftPerson">Persona</label>
@@ -430,15 +439,16 @@ footer {
           <button class="secondary hidden" type="button" id="cancelShiftEdit">Annulla</button>
         </div>
       </form>
+      </div>
     </div>
     <div class="shift-grid">
-      <div class="shift-person-card linda">
-        <div class="shift-heading">🌸 <span id="lindaShiftTitle">Linda</span></div>
-        <div class="shift-days" id="lindaShifts"></div>
-      </div>
       <div class="shift-person-card francesco">
         <div class="shift-heading">💠 <span id="francescoShiftTitle">Francesco</span></div>
         <div class="shift-days" id="francescoShifts"></div>
+      </div>
+      <div class="shift-person-card linda">
+        <div class="shift-heading">🌸 <span id="lindaShiftTitle">Linda</span></div>
+        <div class="shift-days" id="lindaShifts"></div>
       </div>
     </div>
   </section>
@@ -864,8 +874,8 @@ footer {
   function renderShifts() {
     const week = getWeekRange();
     const people = [
-      {name:settings.linda_name,target:"lindaShifts"},
-      {name:settings.francesco_name,target:"francescoShifts"}
+      {name:settings.francesco_name,target:"francescoShifts"},
+      {name:settings.linda_name,target:"lindaShifts"}
     ];
     const dayNames = ["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
     people.forEach(person => {
@@ -876,10 +886,10 @@ footer {
         const iso = localDate(date);
         const shift = currentData.shifts.find(item => item.person === person.name && item.shift_date === iso);
         const value = shiftLabel(shift);
-        return `<div class="shift-day">
+        return `<div class="shift-day" role="button" tabindex="0" aria-label="Modifica turno ${safe(person.name)} ${dayNames[index]} ${date.getDate()}" onclick="window.homeApp.editShift('${shift ? safe(shift.id) : ""}','${iso}','${safe(person.name)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.homeApp.editShift('${shift ? safe(shift.id) : ""}','${iso}','${safe(person.name)}')}">
           <div class="day-name">${dayNames[index]}<br><strong>${date.getDate()}</strong></div>
           <div class="shift-value">${safe(value)}${shift?.notes ? `<div class="meta">${safe(shift.notes)}</div>` : ""}</div>
-          <button class="shift-edit" aria-label="Modifica turno" onclick="window.homeApp.editShift('${shift ? safe(shift.id) : ""}','${iso}','${safe(person.name)}')">›</button>
+          <span class="shift-edit" aria-hidden="true">✎</span>
         </div>`;
       }).join("");
     });
@@ -893,6 +903,7 @@ footer {
     $("shiftFormHeading").textContent = "＋ Aggiungi turno";
     $("shiftSubmit").textContent = "＋ Salva turno";
     $("cancelShiftEdit").classList.add("hidden");
+    $("shiftEditorModal").classList.add("hidden");
     updateShiftTimeFields();
   }
 
@@ -909,7 +920,7 @@ footer {
     $("shiftSubmit").textContent = "Salva modifiche";
     $("cancelShiftEdit").classList.remove("hidden");
     updateShiftTimeFields();
-    $("shiftFormHeading").scrollIntoView({behavior:"smooth",block:"center"});
+    $("shiftEditorModal").classList.remove("hidden");
   }
 
   $("previousWeek").addEventListener("click",async () => { weekOffset--; await loadShifts(); });
@@ -924,6 +935,10 @@ footer {
   }
   $("shiftType").addEventListener("change",updateShiftTimeFields);
   $("cancelShiftEdit").addEventListener("click",resetShiftForm);
+  $("closeShiftEditor").addEventListener("click",resetShiftForm);
+  $("shiftEditorModal").addEventListener("click",event => {
+    if (event.target.id === "shiftEditorModal") resetShiftForm();
+  });
   updateShiftTimeFields();
 
   $("shiftForm").addEventListener("submit",async event => {
