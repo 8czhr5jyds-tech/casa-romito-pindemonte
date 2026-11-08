@@ -361,12 +361,20 @@ footer {
 }
 
  
-/* Compiti di casa: doppia scheda personale */
-.tasks-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 3px 16px}
+/* Compiti di casa: dashboard personale compatta */
+.tasks-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 3px 14px}
 .tasks-intro h2{font-size:23px;margin:3px 0 6px}
 .tasks-intro .muted{margin:0;line-height:1.45}
 .tasks-eyebrow{font-size:10px;letter-spacing:1.25px;font-weight:800;color:#89969b;margin:0}
 .tasks-home-icon{width:52px;height:52px;flex:0 0 52px;border-radius:18px;background:#eef5ff;display:grid;place-items:center;font-size:27px}
+.tasks-progress{display:flex;align-items:center;gap:13px;padding:14px;margin-bottom:14px;border:1px solid #e7eaf4;border-radius:20px;background:linear-gradient(110deg,#fff 0%,#f4f8ff 100%);box-shadow:0 5px 18px rgba(28,58,85,.045)}
+.tasks-progress-ring{width:66px;height:66px;flex:0 0 66px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#36b77b var(--task-progress,0%),#e4f1eb 0);position:relative}
+.tasks-progress-ring:before{content:"";position:absolute;inset:7px;border-radius:50%;background:#fff}
+.tasks-progress-ring strong{position:relative;font-size:17px;color:#203638}
+.tasks-progress-copy{min-width:0;flex:1}
+.tasks-progress-copy strong{display:block;font-size:15px;margin-bottom:3px}
+.tasks-progress-copy span{font-size:12px;color:#718486}
+.tasks-add-toggle{width:100%;margin:0 0 13px;padding:13px 15px;border:1px solid #eadcf2;border-radius:16px;background:linear-gradient(100deg,#a45bd4,#8542b7);color:#fff;font-weight:750;box-shadow:0 5px 13px rgba(133,66,183,.16)}
 .tasks-add-panel{background:#fff;border:1px solid #e7edf1;border-radius:20px;padding:16px;margin-bottom:15px;box-shadow:0 5px 18px rgba(28,58,85,.045)}
 .tasks-add-panel h3{margin:0 0 12px}
 .tasks-urgent-label{display:flex;align-items:center;gap:8px;margin:2px 0 12px}
@@ -579,7 +587,18 @@ footer {
       <div class="tasks-home-icon">🏡</div>
     </div>
 
-    <div class="tasks-add-panel">
+    <div class="tasks-progress">
+      <div class="tasks-progress-ring" id="tasksProgressRing" style="--task-progress:0%">
+        <strong id="tasksProgressPercent">0%</strong>
+      </div>
+      <div class="tasks-progress-copy">
+        <strong>Il nostro progresso</strong>
+        <span id="tasksProgressText">0 compiti completati</span>
+      </div>
+    </div>
+
+    <button class="tasks-add-toggle" id="addTaskToggle" type="button" aria-expanded="false">＋ Nuovo compito</button>
+    <div class="tasks-add-panel" id="taskAddPanel" hidden>
       <h3>＋ Aggiungi un nuovo compito</h3>
       <form id="taskForm">
         <input id="taskTitle" placeholder="Cosa c'è da fare?" required>
@@ -614,7 +633,7 @@ footer {
     </div>
 
     <div class="tasks-people-grid">
-      <article class="task-person-card linda">
+      <article class="task-person-card francesco">
         <div class="task-person-heading">
           <div class="task-avatar" aria-hidden="true">🌸</div>
           <div class="task-person-name-wrap">
@@ -625,7 +644,7 @@ footer {
         </div>
         <div class="task-person-list" id="lindaTasksList"></div>
       </article>
-      <article class="task-person-card francesco">
+      <article class="task-person-card linda">
         <div class="task-person-heading">
           <div class="task-avatar" aria-hidden="true">💙</div>
           <div class="task-person-name-wrap">
@@ -1431,7 +1450,22 @@ footer {
     $("francescoTaskCount").textContent = francescoItems.filter(item => !item.completed).length;
     lindaList.innerHTML = renderPersonTasks(lindaItems);
     francescoList.innerHTML = renderPersonTasks(francescoItems);
+    const completedCount = items.filter(item => item.completed).length;
+    const totalCount = items.length;
+    const progress = totalCount ? Math.round(completedCount / totalCount * 100) : 0;
+    $("tasksProgressPercent").textContent = progress + "%";
+    $("tasksProgressText").textContent = completedCount + " di " + totalCount + " compiti completati";
+    $("tasksProgressRing").style.setProperty("--task-progress", progress + "%");
   }
+
+  $("addTaskToggle").addEventListener("click",() => {
+    const panel = $("taskAddPanel");
+    const opening = panel.hidden;
+    panel.hidden = !opening;
+    $("addTaskToggle").setAttribute("aria-expanded",String(opening));
+    $("addTaskToggle").textContent = opening ? "− Chiudi" : "＋ Nuovo compito";
+    if (opening) $("taskTitle").focus();
+  });
 
   $("taskForm").addEventListener("submit",async event => {
     event.preventDefault();
