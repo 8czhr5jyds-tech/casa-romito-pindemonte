@@ -1,3 +1,5 @@
+
+<!DOCTYPE html>
 <html lang="it">
 <head>
 <meta charset="UTF-8">
@@ -251,7 +253,6 @@ footer {
 
 <main>
 
-<!-- ACCESSO -->
 <section id="login" class="panel">
   <h2>Accedi alla nostra casa</h2>
   <p class="muted">Accedi con il tuo indirizzo email e la tua password.</p>
@@ -267,7 +268,6 @@ footer {
 
 <section id="app" class="hidden">
 
-  <!-- ACCOUNT -->
   <div class="panel">
     <div class="row" style="justify-content:space-between">
       <div>
@@ -279,7 +279,6 @@ footer {
     <div id="status">Connessione in corso…</div>
   </div>
 
-  <!-- MENU -->
   <nav class="tabs">
     <button class="active" data-tab="home">🏡 Home</button>
     <button data-tab="shifts">🗓️ Turni</button>
@@ -289,7 +288,6 @@ footer {
     <button data-tab="settings">⚙️ Impostazioni</button>
   </nav>
 
-  <!-- HOME -->
   <section id="home" class="section active">
     <div class="panel">
       <h2>🏡 La nostra casa</h2>
@@ -316,7 +314,6 @@ footer {
     </div>
   </section>
 
-  <!-- TURNI SETTIMANALI -->
   <section id="shifts" class="section">
     <div class="panel">
       <h2>🗓️ Turni lavorativi settimanali</h2>
@@ -369,7 +366,6 @@ footer {
     </div>
   </section>
 
-  <!-- COMPITI -->
   <section id="tasks" class="section">
     <div class="panel">
       <h2>🧹 Compiti di casa</h2>
@@ -399,7 +395,6 @@ footer {
     </div>
   </section>
 
-  <!-- SPESA -->
   <section id="shopping" class="section">
     <div class="panel">
       <h2>🛒 Lista della spesa</h2>
@@ -415,7 +410,6 @@ footer {
     </div>
   </section>
 
-  <!-- DA PAGARE -->
   <section id="expenses" class="section">
     <div class="panel">
       <h2>💶 Spese di casa</h2>
@@ -472,7 +466,6 @@ footer {
     </div>
   </section>
 
-  <!-- IMPOSTAZIONI -->
   <section id="settings" class="section">
     <div class="panel">
       <h2>⚙️ Impostazioni</h2>
@@ -504,7 +497,7 @@ footer {
     <div class="panel">
       <h3>ℹ️ Informazioni sull'app</h3>
       <p><strong>Casa Romito/Pindemonte</strong></p>
-      <p class="muted">Versione 2.1</p>
+      <p class="muted">Versione 2.2</p>
       <p class="muted">Applicazione privata per l'organizzazione familiare.</p>
       <p class="muted">Dati sincronizzati attraverso Supabase.</p>
     </div>
@@ -519,6 +512,7 @@ footer {
 
 <script>
 (() => {
+  "use strict";
 
   // CONFIGURAZIONE SUPABASE
   const SUPABASE_URL =
@@ -532,11 +526,13 @@ footer {
 
   const STORAGE_BUCKET = "household-files";
 
-  // CHIAVE PUBBLICA VAPID PER LE NOTIFICHE PUSH
   const VAPID_PUBLIC_KEY =
     "BN26id35mPhkakPdmJvKBw-NjqKMHuOwo8DNJ210OLIvP9pTZwCkRXLkAeBwl4EYyXqCGCbjMkeJmLly0lCEW-Y";
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+  const DB_NAME = "casa-romito-offline";
+  const DB_VERSION = 1;
 
   const db = window.supabase.createClient(
     SUPABASE_URL,
@@ -549,6 +545,10 @@ footer {
   let channel = null;
   let refreshTimer = null;
   let weekOffset = 0;
+  let localMode = false;
+  let starting = false;
+  let syncing = false;
+  let databasePromise = null;
 
   let settings = {
     francesco_name: "Francesco",
@@ -564,8 +564,157 @@ footer {
     shifts: []
   };
 
+  let currentAttachments = {
+    task: {},
+    expense: {}
+  };
+
+  // --------------------------------------------------
+  // DATABASE LOCALE (INDEXEDDB)
+  // --------------------------------------------------
+
+  function openLocalDatabase() {
+    if (databasePromise) return databasePromise;
+
+    databasePromise = new Promise((resolve,reject) => {
+      if (!("indexedDB" in window)) {
+        reject(new Error("Memoria locale non supportata."));
+        return;
+      }
+
+      const request = indexedDB.open(DB_NAME,DB_VERSION);
+
+      request.onupgradeneeded = () => {
+        const database = request.result;
+
+        if (!database.objectStoreNames.contains("cache")) {
+          database.createObjectStore("cache",{keyPath:"key"});
+        }
+
+        if (!database.objectStoreNames.contains("queue")) {
+          database.createObjectStore("queue",{keyPath:"id"});
+        }
+
+        if (!database.objectStoreNames.contains("files")) {
+          database.createObjectStore("files",{keyPath:"id"});
+        }
+      };
+
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+
+    return databasePromise;
+  }
+
+  async function localRequest(storeName,mode,operation) {
+    const database = await openLocalDatabase();
+
+    return new Promise((resolve,reject) => {
+      const transaction = database.transaction(storeName,mode);
+      const store = transaction.objectStore(storeName);
+
+      let request;
+
+      try {
+        request = operation(store);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+
+      if (request) {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      } else {
+        transaction.oncomplete = () => resolve(true);
+        transaction.onerror = () => reject(transaction.error);
+      }
+    });
+  }
+
+  const cachePut = value =>
+    localRequest("cache","readwrite",store => store.put(value));
+
+  const cacheGet = key =>
+    localRequest("cache","readonly",store => store.get(key));
+
+  const queuePut = value =>
+    localRequest("queue","readwrite",store => store.put(value));
+
+  const queueDelete = id =>
+    localRequest("queue","readwrite",store => store.delete(id));
+
+  const queueGetAll = () =>
+    localRequest("queue","readonly",store => store.getAll());
+
+  const filePut = value =>
+    localRequest("files","readwrite",store => store.put(value));
+
+  const fileGet = id =>
+    localRequest("files","readonly",store => store.get(id));
+
+  const fileDelete = id =>
+    localRequest("files","readwrite",store => store.delete(id));
+
+  async function cacheKey(name) {
+    return `${user.id}:${HOUSEHOLD_ID}:${name}`;
+  }
+
+  async function saveCache(name,value) {
+    if (!user) return;
+
+    await cachePut({
+      key:await cacheKey(name),
+      value,
+      saved_at:new Date().toISOString()
+    });
+  }
+
+  async function readCache(name) {
+    if (!user) return null;
+
+    const record = await cacheGet(await cacheKey(name));
+    return record ? record.value : null;
+  }
+
+  async function saveVerifiedAccess() {
+    await saveCache("verified",{
+      user_id:user.id,
+      household_id:HOUSEHOLD_ID,
+      email:user.email || "",
+      verified_at:new Date().toISOString()
+    });
+  }
+
+  async function hasVerifiedAccess() {
+    const saved = await readCache("verified");
+
+    return !!(
+      saved &&
+      saved.user_id === user.id &&
+      saved.household_id === HOUSEHOLD_ID
+    );
+  }
+
+  function makeId() {
+    if (window.crypto && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c => {
+      const r = Math.random() * 16 | 0;
+      const v = c === "x" ? r : (r & 3 | 8);
+      return v.toString(16);
+    });
+  }
+
+  // --------------------------------------------------
+  // FUNZIONI GENERALI
+  // --------------------------------------------------
+
   const safe = value =>
-    String(value ?? "").replace(/[&<>"']/g, c => ({
+    String(value ?? "").replace(/[&<>"']/g,c => ({
       "&":"&amp;",
       "<":"&lt;",
       ">":"&gt;",
@@ -578,7 +727,7 @@ footer {
   }
 
   function money(value) {
-    return Number(value || 0).toLocaleString("it-IT", {
+    return Number(value || 0).toLocaleString("it-IT",{
       style:"currency",
       currency:"EUR"
     });
@@ -598,7 +747,8 @@ footer {
 
   function formatDate(value) {
     if (!value) return "";
-    return parseDate(value).toLocaleDateString("it-IT", {
+
+    return parseDate(value).toLocaleDateString("it-IT",{
       weekday:"long",
       day:"numeric",
       month:"long"
@@ -643,19 +793,257 @@ footer {
     `;
 
     $("shiftPerson").innerHTML = `
-      <option value="${safe(settings.francesco_name)}">
-        ${safe(settings.francesco_name)}
-      </option>
-      <option value="${safe(settings.linda_name)}">
-        ${safe(settings.linda_name)}
-      </option>
+      <option value="Francesco">${safe(settings.francesco_name)}</option>
+      <option value="Linda">${safe(settings.linda_name)}</option>
     `;
 
     $("francescoShiftTitle").textContent = settings.francesco_name;
     $("lindaShiftTitle").textContent = settings.linda_name;
   }
 
+  function sortNewest(items) {
+    return [...items].sort((a,b) =>
+      String(b.created_at || "").localeCompare(String(a.created_at || ""))
+    );
+  }
+
+  // --------------------------------------------------
+  // CODA DI SINCRONIZZAZIONE
+  // --------------------------------------------------
+
+  async function addToQueue(operation) {
+    const queued = {
+      id:makeId(),
+      created_at:new Date().toISOString(),
+      user_id:user.id,
+      household_id:HOUSEHOLD_ID,
+      ...operation
+    };
+
+    await queuePut(queued);
+
+    if (navigator.onLine && !localMode) {
+      await syncQueue();
+    } else {
+      status("Modalità offline · modifiche salvate su questo dispositivo");
+    }
+
+    return queued;
+  }
+
+  async function pendingOperations() {
+    const all = await queueGetAll();
+
+    return all
+      .filter(item =>
+        item.user_id === user.id &&
+        item.household_id === HOUSEHOLD_ID
+      )
+      .sort((a,b) =>
+        a.created_at.localeCompare(b.created_at)
+      );
+  }
+
+  async function syncOneOperation(operation) {
+    if (operation.type === "insert") {
+      const {error} = await db
+        .from(operation.table)
+        .upsert(operation.row);
+
+      if (error) throw error;
+      return;
+    }
+
+    if (operation.type === "update") {
+      const {error} = await db
+        .from(operation.table)
+        .update(operation.changes)
+        .eq("id",operation.row_id)
+        .eq("household_id",HOUSEHOLD_ID);
+
+      if (error) throw error;
+      return;
+    }
+
+    if (operation.type === "delete") {
+      const {error} = await db
+        .from(operation.table)
+        .delete()
+        .eq("id",operation.row_id)
+        .eq("household_id",HOUSEHOLD_ID);
+
+      if (error) throw error;
+      return;
+    }
+
+    if (operation.type === "deleteAttachments") {
+      const {data,error} = await db
+        .from("attachments")
+        .select("id,file_path")
+        .eq("household_id",HOUSEHOLD_ID)
+        .eq("entity_type",operation.entity_type)
+        .eq("entity_id",operation.entity_id);
+
+      if (error) throw error;
+
+      if (data && data.length) {
+        const paths = data.map(item => item.file_path);
+
+        const {error:storageError} = await db.storage
+          .from(STORAGE_BUCKET)
+          .remove(paths);
+
+        if (storageError) throw storageError;
+
+        const {error:metadataError} = await db
+          .from("attachments")
+          .delete()
+          .eq("household_id",HOUSEHOLD_ID)
+          .eq("entity_type",operation.entity_type)
+          .eq("entity_id",operation.entity_id);
+
+        if (metadataError) throw metadataError;
+      }
+
+      return;
+    }
+
+    if (operation.type === "uploadAttachment") {
+      const savedFile = await fileGet(operation.file_id);
+
+      if (!savedFile || !savedFile.file) {
+        throw new Error("Un allegato in attesa non è più disponibile sul dispositivo.");
+      }
+
+      const path =
+        HOUSEHOLD_ID + "/" +
+        operation.entity_type + "/" +
+        operation.entity_id + "/" +
+        operation.file_id + "_" +
+        safeFileName(operation.file_name);
+
+      const {error:uploadError} = await db.storage
+        .from(STORAGE_BUCKET)
+        .upload(path,savedFile.file,{
+          contentType:operation.mime_type || "application/octet-stream",
+          upsert:true
+        });
+
+      if (uploadError) throw uploadError;
+
+      const metadata = {
+        household_id:HOUSEHOLD_ID,
+        entity_type:operation.entity_type,
+        entity_id:operation.entity_id,
+        file_path:path,
+        original_name:operation.file_name,
+        mime_type:operation.mime_type || null,
+        size_bytes:operation.size_bytes,
+        uploaded_by:user.id
+      };
+
+      const {error:insertError} = await db
+        .from("attachments")
+        .upsert(metadata,{
+          onConflict:"file_path"
+        });
+
+      if (insertError) throw insertError;
+
+      await fileDelete(operation.file_id);
+    }
+  }
+
+  async function syncQueue() {
+    if (
+      syncing ||
+      !navigator.onLine ||
+      !user ||
+      localMode
+    ) return;
+
+    syncing = true;
+    let failed = false;
+
+    try {
+      const operations = await pendingOperations();
+
+      for (const operation of operations) {
+        try {
+          await syncOneOperation(operation);
+          await queueDelete(operation.id);
+        } catch (error) {
+          console.error("Sincronizzazione in attesa:",error);
+          failed = true;
+          break;
+        }
+      }
+
+      if (failed) {
+        status("Connessione disponibile · alcune modifiche attendono la sincronizzazione");
+      } else {
+        status("Dati sincronizzati · " + new Date().toLocaleTimeString("it-IT"));
+      }
+    } finally {
+      syncing = false;
+    }
+
+    if (!failed && navigator.onLine) {
+      await refreshFromServer();
+    }
+  }
+
+  async function applyPendingChanges(table,rows) {
+    const result = [...rows];
+    const operations = await pendingOperations();
+
+    for (const operation of operations) {
+      if (operation.table !== table) continue;
+
+      if (operation.type === "insert") {
+        const index = result.findIndex(row => row.id === operation.row.id);
+
+        if (index === -1) result.push(operation.row);
+        else result[index] = operation.row;
+      }
+
+      if (operation.type === "update") {
+        const index = result.findIndex(row => row.id === operation.row_id);
+
+        if (index !== -1) {
+          result[index] = {
+            ...result[index],
+            ...operation.changes
+          };
+        }
+      }
+
+      if (operation.type === "delete") {
+        const index = result.findIndex(row => row.id === operation.row_id);
+
+        if (index !== -1) result.splice(index,1);
+      }
+    }
+
+    return result;
+  }
+
+  // --------------------------------------------------
+  // IMPOSTAZIONI
+  // --------------------------------------------------
+
   async function loadSettings() {
+    if (!navigator.onLine || localMode) {
+      const saved = await readCache("settings");
+
+      if (!saved) return false;
+
+      settings = saved;
+      populateOptions();
+      updateAccountLabels();
+      return true;
+    }
+
     const {data,error} = await db
       .from("household_settings")
       .select("*")
@@ -663,13 +1051,26 @@ footer {
       .maybeSingle();
 
     if (error || !data) {
-      status("Errore nel caricamento delle impostazioni.");
-      return false;
+      const saved = await readCache("settings");
+
+      if (!saved) return false;
+
+      settings = saved;
+      populateOptions();
+      updateAccountLabels();
+      return true;
     }
 
     settings = data;
-    populateOptions();
+    await saveCache("settings",settings);
 
+    populateOptions();
+    updateAccountLabels();
+
+    return true;
+  }
+
+  function updateAccountLabels() {
     let displayName = "Componente della famiglia";
 
     if (user.id === settings.francesco_user_id) {
@@ -680,13 +1081,16 @@ footer {
       displayName = settings.linda_name;
     }
 
-    $("who").textContent = displayName + " · " + (user.email || "");
-    $("accountEmail").textContent = user.email || "";
+    $("who").textContent =
+      displayName + " · " + (user.email || "");
 
-    return true;
+    $("accountEmail").textContent = user.email || "";
   }
 
-  // GESTIONE SETTIMANE
+  // --------------------------------------------------
+  // TURNI SETTIMANALI
+  // --------------------------------------------------
+
   function getWeekRange() {
     const now = new Date();
     now.setHours(0,0,0,0);
@@ -700,8 +1104,8 @@ footer {
     sunday.setDate(monday.getDate() + 6);
 
     return {
-      start: localDate(monday),
-      end: localDate(sunday),
+      start:localDate(monday),
+      end:localDate(sunday),
       monday,
       sunday
     };
@@ -710,10 +1114,11 @@ footer {
   function renderWeekLabel() {
     const week = getWeekRange();
 
-    const options = {day:"numeric",month:"short"};
-
     $("weekLabel").textContent =
-      week.monday.toLocaleDateString("it-IT",options) +
+      week.monday.toLocaleDateString("it-IT",{
+        day:"numeric",
+        month:"short"
+      }) +
       " – " +
       week.sunday.toLocaleDateString("it-IT",{
         day:"numeric",
@@ -723,23 +1128,51 @@ footer {
   }
 
   async function loadShifts() {
+    if (!user) return;
+
     const week = getWeekRange();
     renderWeekLabel();
 
-    const {data,error} = await db
-      .from("work_shifts")
-      .select("*")
-      .eq("household_id",HOUSEHOLD_ID)
-      .gte("shift_date",week.start)
-      .lte("shift_date",week.end)
-      .order("shift_date",{ascending:true});
+    let shifts = [];
 
-    if (error) {
-      status("Errore nel caricamento dei turni: " + error.message);
-      return;
+    if (navigator.onLine && !localMode) {
+      const {data,error} = await db
+        .from("work_shifts")
+        .select("*")
+        .eq("household_id",HOUSEHOLD_ID)
+        .gte("shift_date",week.start)
+        .lte("shift_date",week.end)
+        .order("shift_date",{ascending:true});
+
+      if (!error) {
+        shifts = data || [];
+        await saveCache("shifts_" + week.start,shifts);
+      } else {
+        shifts = await readCache("shifts_" + week.start) || [];
+      }
+    } else {
+      shifts = await readCache("shifts_" + week.start) || [];
     }
 
-    currentData.shifts = data || [];
+    const operations = await pendingOperations();
+
+    for (const operation of operations) {
+      if (operation.table !== "work_shifts") continue;
+
+      if (operation.type === "insert") {
+        if (
+          operation.row.shift_date >= week.start &&
+          operation.row.shift_date <= week.end &&
+          !shifts.some(item => item.id === operation.row.id)
+        ) shifts.push(operation.row);
+      }
+
+      if (operation.type === "delete") {
+        shifts = shifts.filter(item => item.id !== operation.row_id);
+      }
+    }
+
+    currentData.shifts = shifts;
     renderShifts();
     renderHome();
   }
@@ -758,7 +1191,8 @@ footer {
       const list = $(person.target);
 
       if (!shifts.length) {
-        list.innerHTML = '<p class="muted">Nessun turno questa settimana.</p>';
+        list.innerHTML =
+          '<p class="muted">Nessun turno questa settimana.</p>';
         return;
       }
 
@@ -809,136 +1243,134 @@ footer {
       return;
     }
 
-    const {error} = await db.from("work_shifts").insert({
+    const person = $("shiftPerson").value;
+
+    const row = {
+      id:makeId(),
       household_id:HOUSEHOLD_ID,
-      person:$("shiftPerson").value,
+      person:person === "Linda" ? "Linda" : "Francesco",
       shift_date:date,
       start_time:start,
       end_time:end,
-      notes:$("shiftNotes").value.trim() || null
-    });
+      notes:$("shiftNotes").value.trim() || null,
+      created_at:new Date().toISOString()
+    };
 
-    if (error) {
-      alert("Errore nel salvataggio del turno: " + error.message);
-      return;
+    currentData.shifts.push(row);
+
+    const week = getWeekRange();
+    if (date >= week.start && date <= week.end) {
+      await saveCache("shifts_" + week.start,currentData.shifts);
     }
+
+    await addToQueue({
+      type:"insert",
+      table:"work_shifts",
+      row
+    });
 
     $("shiftForm").reset();
     $("shiftDate").value = localDate(new Date());
     weekOffset = 0;
+
     await loadShifts();
   });
 
   async function removeShift(id) {
     if (!confirm("Vuoi eliminare questo turno?")) return;
 
-    const {error} = await db
-      .from("work_shifts")
-      .delete()
-      .eq("id",id)
-      .eq("household_id",HOUSEHOLD_ID);
+    currentData.shifts =
+      currentData.shifts.filter(item => item.id !== id);
 
-    if (error) {
-      alert("Errore: " + error.message);
-    } else {
-      await loadShifts();
-    }
+    const week = getWeekRange();
+    await saveCache("shifts_" + week.start,currentData.shifts);
+
+    await addToQueue({
+      type:"delete",
+      table:"work_shifts",
+      row_id:id
+    });
+
+    await loadShifts();
   }
 
+  // --------------------------------------------------
   // ALLEGATI
-  function uniqueId() {
-    if (window.crypto && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return Date.now() + "-" + Math.random().toString(36).slice(2);
-  }
+  // --------------------------------------------------
 
   function safeFileName(name) {
     return name.replace(/[^a-zA-Z0-9._-]/g,"_");
   }
 
-  async function uploadAttachments(entityType,entityId,files) {
+  async function savePendingFiles(entityType,entityId,files) {
     if (!files || !files.length) return true;
 
-    const uploadedPaths = [];
-    const metadata = [];
-
-    try {
-      for (const file of Array.from(files)) {
-        if (file.size > MAX_FILE_SIZE) {
-          throw new Error(file.name + " supera il limite di 10 MB.");
-        }
-
-        const path =
-          HOUSEHOLD_ID + "/" +
-          entityType + "/" +
-          entityId + "/" +
-          uniqueId() + "_" +
-          safeFileName(file.name);
-
-        const {error:uploadError} = await db.storage
-          .from(STORAGE_BUCKET)
-          .upload(path,file,{
-            contentType:file.type || "application/octet-stream",
-            upsert:false
-          });
-
-        if (uploadError) throw uploadError;
-
-        uploadedPaths.push(path);
-
-        metadata.push({
-          household_id:HOUSEHOLD_ID,
-          entity_type:entityType,
-          entity_id:entityId,
-          file_path:path,
-          original_name:file.name,
-          mime_type:file.type || null,
-          size_bytes:file.size,
-          uploaded_by:user.id
-        });
+    for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE) {
+        alert(file.name + " supera il limite di 10 MB.");
+        continue;
       }
 
-      const {error:insertError} = await db
-        .from("attachments")
-        .insert(metadata);
+      const fileId = makeId();
 
-      if (insertError) throw insertError;
-      return true;
+      await filePut({
+        id:fileId,
+        file,
+        file_name:file.name,
+        entity_type:entityType,
+        entity_id:entityId
+      });
 
-    } catch (error) {
-      if (uploadedPaths.length) {
-        await db.storage.from(STORAGE_BUCKET).remove(uploadedPaths);
-      }
-      alert("Errore negli allegati: " + error.message);
-      return false;
+      await addToQueue({
+        type:"uploadAttachment",
+        file_id:fileId,
+        entity_type:entityType,
+        entity_id:entityId,
+        file_name:file.name,
+        mime_type:file.type || null,
+        size_bytes:file.size
+      });
     }
+
+    return true;
   }
 
   async function loadAttachments(entityType,ids) {
     if (!ids.length) return {};
 
-    const {data,error} = await db
-      .from("attachments")
-      .select("*")
-      .eq("household_id",HOUSEHOLD_ID)
-      .eq("entity_type",entityType)
-      .in("entity_id",ids);
+    let data = [];
 
-    if (error) {
-      console.error("Errore allegati:",error.message);
-      return {};
+    if (navigator.onLine && !localMode) {
+      const {data:remoteData,error} = await db
+        .from("attachments")
+        .select("*")
+        .eq("household_id",HOUSEHOLD_ID)
+        .eq("entity_type",entityType)
+        .in("entity_id",ids);
+
+      if (!error) {
+        data = remoteData || [];
+        await saveCache("attachments_" + entityType,data);
+      } else {
+        data = await readCache("attachments_" + entityType) || [];
+      }
+    } else {
+      data = await readCache("attachments_" + entityType) || [];
     }
 
     const grouped = {};
 
-    for (const attachment of data || []) {
-      const {data:urlData,error:urlError} = await db.storage
-        .from(STORAGE_BUCKET)
-        .createSignedUrl(attachment.file_path,3600);
+    for (const attachment of data) {
+      if (!ids.includes(attachment.entity_id)) continue;
 
-      if (!urlError && urlData) {
-        attachment.signed_url = urlData.signedUrl;
+      if (navigator.onLine && !localMode) {
+        const {data:urlData,error:urlError} = await db.storage
+          .from(STORAGE_BUCKET)
+          .createSignedUrl(attachment.file_path,3600);
+
+        if (!urlError && urlData) {
+          attachment.signed_url = urlData.signedUrl;
+        }
       }
 
       if (!grouped[attachment.entity_id]) {
@@ -946,6 +1378,25 @@ footer {
       }
 
       grouped[attachment.entity_id].push(attachment);
+    }
+
+    const queued = await pendingOperations();
+
+    for (const operation of queued) {
+      if (
+        operation.type !== "uploadAttachment" ||
+        operation.entity_type !== entityType ||
+        !ids.includes(operation.entity_id)
+      ) continue;
+
+      if (!grouped[operation.entity_id]) {
+        grouped[operation.entity_id] = [];
+      }
+
+      grouped[operation.entity_id].push({
+        original_name:operation.file_name,
+        local_pending:true
+      });
     }
 
     return grouped;
@@ -964,46 +1415,40 @@ footer {
             📎 ${safe(file.original_name)}
           </a>
         ` : `
-          <span class="attachment-link">📎 ${safe(file.original_name)}</span>
+          <span class="attachment-link">
+            📎 ${safe(file.original_name)}
+            ${file.local_pending ? " · in attesa" : ""}
+          </span>
         `).join("")}
       </div>
     `;
   }
 
   async function deleteEntityAttachments(entityType,entityId) {
-    const {data,error} = await db
-      .from("attachments")
-      .select("id,file_path")
-      .eq("household_id",HOUSEHOLD_ID)
-      .eq("entity_type",entityType)
-      .eq("entity_id",entityId);
-
-    if (error) throw error;
-    if (!data || !data.length) return;
-
-    const paths = data.map(file => file.file_path);
-
-    const {error:storageError} = await db.storage
-      .from(STORAGE_BUCKET)
-      .remove(paths);
-
-    if (storageError) throw storageError;
-
-    const {error:metadataError} = await db
-      .from("attachments")
-      .delete()
-      .eq("household_id",HOUSEHOLD_ID)
-      .eq("entity_type",entityType)
-      .eq("entity_id",entityId);
-
-    if (metadataError) throw metadataError;
+    await addToQueue({
+      type:"deleteAttachments",
+      entity_type:entityType,
+      entity_id:entityId
+    });
   }
 
-  // CARICAMENTO DATI
+  // --------------------------------------------------
+  // DATI E CACHE
+  // --------------------------------------------------
+
   async function loadData() {
     if (!user) return;
 
-    const tables = ["tasks","shopping","household_expenses"];
+    if (!navigator.onLine || localMode) {
+      await loadDataFromCache();
+      return;
+    }
+
+    const tables = [
+      "tasks",
+      "shopping",
+      "household_expenses"
+    ];
 
     const results = await Promise.all(
       tables.map(table =>
@@ -1017,12 +1462,24 @@ footer {
     const errors = results.filter(result => result.error);
 
     if (errors.length) {
-      status("Errore nel caricamento: " + errors[0].error.message);
+      await loadDataFromCache();
       return;
     }
 
-    const [tasks,shopping,expenses] =
+    let [tasks,shopping,expenses] =
       results.map(result => result.data || []);
+
+    tasks = await applyPendingChanges("tasks",tasks);
+    shopping = await applyPendingChanges("shopping",shopping);
+    expenses = await applyPendingChanges("household_expenses",expenses);
+
+    currentData.tasks = sortNewest(tasks);
+    currentData.shopping = sortNewest(shopping);
+    currentData.expenses = sortNewest(expenses);
+
+    await saveCache("tasks",currentData.tasks);
+    await saveCache("shopping",currentData.shopping);
+    await saveCache("expenses",currentData.expenses);
 
     const [taskAttachments,expenseAttachments] =
       await Promise.all([
@@ -1030,20 +1487,58 @@ footer {
         loadAttachments("expense",expenses.map(item => item.id))
       ]);
 
-    currentData.tasks = tasks;
-    currentData.shopping = shopping;
-    currentData.expenses = expenses;
+    currentAttachments.task = taskAttachments;
+    currentAttachments.expense = expenseAttachments;
 
-    renderTasks(tasks,taskAttachments);
-    renderShopping(shopping);
-    renderExpenses(expenses,expenseAttachments);
-
+    renderTasks(currentData.tasks,taskAttachments);
+    renderShopping(currentData.shopping);
+    renderExpenses(currentData.expenses,expenseAttachments);
     renderHome();
 
-    status("Dati aggiornati · " + new Date().toLocaleTimeString("it-IT"));
+    const waiting = await pendingOperations();
+
+    status(
+      waiting.length
+        ? "Dati aggiornati · " + waiting.length + " modifiche in attesa"
+        : "Dati aggiornati · " + new Date().toLocaleTimeString("it-IT")
+    );
   }
 
+  async function loadDataFromCache() {
+    currentData.tasks = await readCache("tasks") || [];
+    currentData.shopping = await readCache("shopping") || [];
+    currentData.expenses = await readCache("expenses") || [];
+
+    currentAttachments.task =
+      await loadAttachments("task",currentData.tasks.map(item => item.id));
+
+    currentAttachments.expense =
+      await loadAttachments("expense",currentData.expenses.map(item => item.id));
+
+    renderTasks(currentData.tasks,currentAttachments.task);
+    renderShopping(currentData.shopping);
+    renderExpenses(currentData.expenses,currentAttachments.expense);
+    renderHome();
+
+    status("Modalità offline · dati salvati su questo dispositivo");
+  }
+
+  async function refreshFromServer() {
+    if (!user || !navigator.onLine || localMode) return;
+
+    await syncQueue();
+
+    if (localMode) return;
+
+    await loadSettings();
+    await loadData();
+    await loadShifts();
+  }
+
+  // --------------------------------------------------
   // HOME
+  // --------------------------------------------------
+
   function renderHome() {
     $("homeTasks").textContent =
       currentData.tasks.filter(item => !item.completed).length;
@@ -1059,12 +1554,16 @@ footer {
     $("homeShifts").textContent = currentData.shifts.length;
   }
 
+  // --------------------------------------------------
   // COMPITI
+  // --------------------------------------------------
+
   function renderTasks(items,attachments = {}) {
     const list = $("tasksList");
 
     if (!items.length) {
-      list.innerHTML = '<p class="muted">Non ci sono ancora compiti.</p>';
+      list.innerHTML =
+        '<p class="muted">Non ci sono ancora compiti.</p>';
       return;
     }
 
@@ -1098,39 +1597,50 @@ footer {
     const title = $("taskTitle").value.trim();
     if (!title) return;
 
-    const files = $("taskFiles").files;
+    const files = Array.from($("taskFiles").files || []);
 
-    const {data,error} = await db.from("tasks")
-      .insert({
-        title,
-        assigned_to:$("taskAssigned").value,
-        urgent:$("taskUrgent").checked,
-        completed:false,
-        household_id:HOUSEHOLD_ID
-      })
-      .select()
-      .single();
+    const row = {
+      id:makeId(),
+      title,
+      assigned_to:$("taskAssigned").value,
+      urgent:$("taskUrgent").checked,
+      completed:false,
+      household_id:HOUSEHOLD_ID,
+      created_at:new Date().toISOString()
+    };
 
-    if (error) {
-      alert("Errore nel salvataggio: " + error.message);
-      return;
-    }
+    currentData.tasks.unshift(row);
+    await saveCache("tasks",currentData.tasks);
+
+    renderTasks(currentData.tasks,currentAttachments.task);
+    renderHome();
+
+    await addToQueue({
+      type:"insert",
+      table:"tasks",
+      row
+    });
 
     if (files.length) {
-      await uploadAttachments("task",data.id,files);
+      await savePendingFiles("task",row.id,files);
     }
 
     $("taskForm").reset();
     $("taskAssigned").value = "Entrambi";
+
     await loadData();
   });
 
+  // --------------------------------------------------
   // SPESA
+  // --------------------------------------------------
+
   function renderShopping(items) {
     const list = $("shoppingList");
 
     if (!items.length) {
-      list.innerHTML = '<p class="muted">La lista della spesa è vuota.</p>';
+      list.innerHTML =
+        '<p class="muted">La lista della spesa è vuota.</p>';
       return;
     }
 
@@ -1159,22 +1669,34 @@ footer {
     const title = $("shoppingTitle").value.trim();
     if (!title) return;
 
-    const {error} = await db.from("shopping").insert({
+    const row = {
+      id:makeId(),
       title,
       completed:false,
-      household_id:HOUSEHOLD_ID
-    });
+      household_id:HOUSEHOLD_ID,
+      created_at:new Date().toISOString()
+    };
 
-    if (error) {
-      alert("Errore: " + error.message);
-      return;
-    }
+    currentData.shopping.unshift(row);
+    await saveCache("shopping",currentData.shopping);
+
+    renderShopping(currentData.shopping);
+    renderHome();
+
+    await addToQueue({
+      type:"insert",
+      table:"shopping",
+      row
+    });
 
     $("shoppingForm").reset();
     await loadData();
   });
 
-  // DA PAGARE
+  // --------------------------------------------------
+  // SPESE
+  // --------------------------------------------------
+
   function renderExpenses(items,attachments = {}) {
     const unpaid = items.filter(item => !item.paid);
     const paid = items.filter(item => item.paid);
@@ -1239,7 +1761,7 @@ footer {
     const title = $("expenseTitle").value.trim();
     const amount = Number($("expenseAmount").value);
     const dueDate = $("expenseDate").value || null;
-    const files = $("expenseFiles").files;
+    const files = Array.from($("expenseFiles").files || []);
 
     if (!title) {
       alert("Inserisci una descrizione per la spesa.");
@@ -1251,64 +1773,117 @@ footer {
       return;
     }
 
-    const {data,error} = await db
-      .from("household_expenses")
-      .insert({
-        household_id:HOUSEHOLD_ID,
-        title,
-        amount,
-        due_date:dueDate,
-        paid:false
-      })
-      .select()
-      .single();
+    const row = {
+      id:makeId(),
+      household_id:HOUSEHOLD_ID,
+      title,
+      amount,
+      due_date:dueDate,
+      paid:false,
+      created_at:new Date().toISOString()
+    };
 
-    if (error) {
-      alert("Errore nel salvataggio della spesa: " + error.message);
-      return;
-    }
+    currentData.expenses.unshift(row);
+    await saveCache("expenses",currentData.expenses);
+
+    renderExpenses(currentData.expenses,currentAttachments.expense);
+    renderHome();
+
+    await addToQueue({
+      type:"insert",
+      table:"household_expenses",
+      row
+    });
 
     if (files.length) {
-      await uploadAttachments("expense",data.id,files);
+      await savePendingFiles("expense",row.id,files);
     }
 
     $("expenseForm").reset();
     await loadData();
   });
 
-  // ELIMINAZIONE E COMPLETAMENTO
-  async function toggle(table,id,column,value) {
-    const {error} = await db.from(table)
-      .update({[column]:value})
-      .eq("id",id)
-      .eq("household_id",HOUSEHOLD_ID);
+  // --------------------------------------------------
+  // MODIFICA ED ELIMINAZIONE
+  // --------------------------------------------------
 
-    if (error) {
-      alert("Errore: " + error.message);
-    } else {
-      await loadData();
+  async function toggle(table,id,column,value) {
+    const key = {
+      tasks:"tasks",
+      shopping:"shopping",
+      household_expenses:"expenses"
+    }[table];
+
+    if (!key) return;
+
+    const item = currentData[key].find(row => row.id === id);
+    if (!item) return;
+
+    item[column] = value;
+
+    await saveCache(key,currentData[key]);
+
+    if (table === "tasks") {
+      renderTasks(currentData.tasks,currentAttachments.task);
     }
+
+    if (table === "shopping") {
+      renderShopping(currentData.shopping);
+    }
+
+    if (table === "household_expenses") {
+      renderExpenses(currentData.expenses,currentAttachments.expense);
+    }
+
+    renderHome();
+
+    await addToQueue({
+      type:"update",
+      table,
+      row_id:id,
+      changes:{[column]:value}
+    });
   }
 
   async function remove(table,id,entityType = null) {
     if (!confirm("Vuoi eliminare questo elemento?")) return;
 
-    try {
-      if (entityType) {
-        await deleteEntityAttachments(entityType,id);
-      }
+    const key = {
+      tasks:"tasks",
+      shopping:"shopping",
+      household_expenses:"expenses"
+    }[table];
 
-      const {error} = await db.from(table)
-        .delete()
-        .eq("id",id)
-        .eq("household_id",HOUSEHOLD_ID);
+    if (!key) return;
 
-      if (error) throw error;
-      await loadData();
-
-    } catch (error) {
-      alert("Errore durante l'eliminazione: " + error.message);
+    if (entityType) {
+      await deleteEntityAttachments(entityType,id);
     }
+
+    currentData[key] =
+      currentData[key].filter(item => item.id !== id);
+
+    await saveCache(key,currentData[key]);
+
+    if (table === "tasks") {
+      renderTasks(currentData.tasks,currentAttachments.task);
+    }
+
+    if (table === "shopping") {
+      renderShopping(currentData.shopping);
+    }
+
+    if (table === "household_expenses") {
+      renderExpenses(currentData.expenses,currentAttachments.expense);
+    }
+
+    renderHome();
+
+    await addToQueue({
+      type:"delete",
+      table,
+      row_id:id
+    });
   }
 
   window.homeApp = {
@@ -1317,7 +1892,10 @@ footer {
     removeShift
   };
 
+  // --------------------------------------------------
   // NOTIFICHE PUSH
+  // --------------------------------------------------
+
   function updateNotificationStatus() {
     if (!("Notification" in window)) {
       $("notificationStatus").textContent =
@@ -1339,8 +1917,8 @@ footer {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);
 
     const base64 = (base64String + padding)
-      .replace(/-/g, "+")
-      .replace(/_/g, "/");
+      .replace(/-/g,"+")
+      .replace(/_/g,"/");
 
     const rawData = atob(base64);
 
@@ -1353,6 +1931,10 @@ footer {
   async function registerPushNotifications() {
     if (!user) {
       throw new Error("Accedi prima di registrare questo dispositivo.");
+    }
+
+    if (!navigator.onLine || localMode) {
+      throw new Error("Per registrare le notifiche serve una connessione Internet.");
     }
 
     if (
@@ -1369,20 +1951,16 @@ footer {
     }
 
     if (!window.isSecureContext) {
-      throw new Error(
-        "Le notifiche richiedono una connessione HTTPS."
-      );
+      throw new Error("Le notifiche richiedono una connessione HTTPS.");
     }
 
     if (Notification.permission !== "granted") {
-      throw new Error(
-        "Prima devi concedere il permesso per le notifiche."
-      );
+      throw new Error("Prima devi concedere il permesso per le notifiche.");
     }
 
     const registration =
-      await navigator.serviceWorker.register("./sw.js", {
-        scope: "./"
+      await navigator.serviceWorker.register("./sw.js",{
+        scope:"./"
       });
 
     await navigator.serviceWorker.ready;
@@ -1393,7 +1971,7 @@ footer {
     if (!subscription) {
       subscription =
         await registration.pushManager.subscribe({
-          userVisibleOnly: true,
+          userVisibleOnly:true,
           applicationServerKey:
             urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
@@ -1412,17 +1990,17 @@ footer {
       );
     }
 
-    const { error } = await db
+    const {error} = await db
       .from("web_push_subscriptions")
       .upsert({
-        household_id: HOUSEHOLD_ID,
-        user_id: user.id,
-        endpoint: json.endpoint,
-        p256dh: json.keys.p256dh,
-        auth: json.keys.auth,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: "endpoint"
+        household_id:HOUSEHOLD_ID,
+        user_id:user.id,
+        endpoint:json.endpoint,
+        p256dh:json.keys.p256dh,
+        auth:json.keys.auth,
+        updated_at:new Date().toISOString()
+      },{
+        onConflict:"endpoint"
       });
 
     if (error) throw error;
@@ -1430,60 +2008,70 @@ footer {
     return true;
   }
 
-  $("enableNotifications").addEventListener(
-    "click",
-    async () => {
-      if (!("Notification" in window)) {
-        alert("Questo browser non supporta le notifiche.");
-        return;
-      }
-
-      if (!user) {
-        alert("Accedi prima di attivare le notifiche.");
-        return;
-      }
-
-      try {
-        const permission =
-          await Notification.requestPermission();
-
-        updateNotificationStatus();
-
-        if (permission !== "granted") {
-          alert(
-            "Permesso notifiche non concesso. " +
-            "Controlla le impostazioni del dispositivo."
-          );
-          return;
-        }
-
-        await registerPushNotifications();
-
-        $("notificationStatus").textContent =
-          "Notifiche push attive e dispositivo registrato.";
-
-        alert(
-          "Perfetto! Questo dispositivo è registrato " +
-          "per ricevere le notifiche di Casa."
-        );
-
-      } catch (error) {
-        console.error("Errore notifiche push:", error);
-
-        $("notificationStatus").textContent =
-          "Non è stato possibile completare la registrazione push.";
-
-        alert(
-          "Non è stato possibile attivare le notifiche: " +
-          error.message
-        );
-      }
+  $("enableNotifications").addEventListener("click",async () => {
+    if (!("Notification" in window)) {
+      alert("Questo browser non supporta le notifiche.");
+      return;
     }
-  );
 
+    if (!user) {
+      alert("Accedi prima di attivare le notifiche.");
+      return;
+    }
+
+    if (!navigator.onLine || localMode) {
+      alert("Per attivare le notifiche serve una connessione Internet.");
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+
+      updateNotificationStatus();
+
+      if (permission !== "granted") {
+        alert(
+          "Permesso notifiche non concesso. " +
+          "Controlla le impostazioni del dispositivo."
+        );
+        return;
+      }
+
+      await registerPushNotifications();
+
+      $("notificationStatus").textContent =
+        "Notifiche push attive e dispositivo registrato.";
+
+      alert(
+        "Perfetto! Questo dispositivo è registrato " +
+        "per ricevere le notifiche di Casa."
+      );
+
+    } catch (error) {
+      console.error("Errore notifiche push:",error);
+
+      $("notificationStatus").textContent =
+        "Non è stato possibile completare la registrazione push.";
+
+      alert(
+        "Non è stato possibile attivare le notifiche: " +
+        error.message
+      );
+    }
+  });
+
+  // --------------------------------------------------
   // AUTENTICAZIONE
+  // --------------------------------------------------
+
   $("loginForm").addEventListener("submit",async event => {
     event.preventDefault();
+
+    if (!navigator.onLine) {
+      $("loginError").textContent =
+        "Per effettuare un nuovo accesso serve Internet. Se hai già effettuato l'accesso su questo dispositivo, ricarica l'app.";
+      return;
+    }
 
     $("loginError").textContent = "Accesso in corso…";
 
@@ -1499,10 +2087,17 @@ footer {
     }
 
     user = data.user;
+    localMode = false;
+
     await startApp();
   });
 
   async function logout() {
+    if (!navigator.onLine) {
+      alert("Per uscire dall'account serve una connessione Internet. Puoi chiudere l'app senza effettuare la disconnessione.");
+      return;
+    }
+
     const {error} = await db.auth.signOut();
 
     if (error) {
@@ -1511,6 +2106,7 @@ footer {
     }
 
     user = null;
+    localMode = false;
 
     if (channel) {
       await db.removeChannel(channel);
@@ -1528,10 +2124,16 @@ footer {
   $("logout").addEventListener("click",logout);
   $("settingsLogout").addEventListener("click",logout);
 
+  // --------------------------------------------------
   // NAVIGAZIONE
+  // --------------------------------------------------
+
   function openTab(tab) {
     document.querySelectorAll(".tabs button").forEach(button => {
-      button.classList.toggle("active",button.dataset.tab === tab);
+      button.classList.toggle(
+        "active",
+        button.dataset.tab === tab
+      );
     });
 
     document.querySelectorAll(".section").forEach(section => {
@@ -1547,58 +2149,159 @@ footer {
     button.addEventListener("click",() => openTab(button.dataset.tab));
   });
 
-  // AVVIO
+  // --------------------------------------------------
+  // AVVIO ONLINE / OFFLINE
+  // --------------------------------------------------
+
   async function startApp() {
+    if (starting || !user) return;
+
+    starting = true;
     showApp();
-    status("Verifica dell'account in corso…");
 
-    const {data:member,error:memberError} = await db
-      .from("household_members")
-      .select("household_id")
-      .eq("user_id",user.id)
-      .maybeSingle();
+    try {
+      await openLocalDatabase();
 
-    if (
-      memberError ||
-      !member ||
-      member.household_id !== HOUSEHOLD_ID
-    ) {
-      status("Questo account non risulta associato alla famiglia.");
+      $("shiftDate").value = localDate(new Date());
+      updateNotificationStatus();
+
+      if (!navigator.onLine) {
+        await startOffline();
+        return;
+      }
+
+      status("Verifica dell'account in corso…");
+
+      const {data:member,error:memberError} = await db
+        .from("household_members")
+        .select("household_id")
+        .eq("user_id",user.id)
+        .maybeSingle();
+
+      if (
+        memberError ||
+        !member ||
+        member.household_id !== HOUSEHOLD_ID
+      ) {
+        const allowed = await hasVerifiedAccess();
+
+        if (!allowed) {
+          status("Non è stato possibile verificare l'account. Accedi online e riprova.");
+          return;
+        }
+
+        await startOffline();
+        return;
+      }
+
+      localMode = false;
+
+      await saveVerifiedAccess();
+
+      const settingsOk = await loadSettings();
+
+      if (!settingsOk) {
+        if (await hasVerifiedAccess()) {
+          await startOffline();
+        } else {
+          status("Errore nel caricamento delle impostazioni.");
+        }
+        return;
+      }
+
+      if (
+        "Notification" in window &&
+        Notification.permission === "granted" &&
+        "serviceWorker" in navigator &&
+        "PushManager" in window
+      ) {
+        try {
+          await registerPushNotifications();
+
+          $("notificationStatus").textContent =
+            "Notifiche push attive e dispositivo registrato.";
+        } catch (error) {
+          console.error("Aggiornamento notifiche non riuscito:",error);
+        }
+      }
+
+      await syncQueue();
+      await loadData();
+      await loadShifts();
+
+      startRealtime();
+
+      if (refreshTimer) clearInterval(refreshTimer);
+
+      refreshTimer = setInterval(async () => {
+        if (navigator.onLine && !localMode) {
+          await refreshFromServer();
+        }
+      },30000);
+
+    } catch (error) {
+      console.error("Errore avvio app:",error);
+
+      if (await hasVerifiedAccess()) {
+        await startOffline();
+      } else {
+        status("Impossibile avviare l'app. Effettua il primo accesso online.");
+      }
+
+    } finally {
+      starting = false;
+    }
+  }
+
+  async function startOffline() {
+    const allowed = await hasVerifiedAccess();
+
+    if (!allowed) {
+      showLogin();
+      $("loginError").textContent =
+        "Per utilizzare Casa offline devi prima accedere online da questo dispositivo.";
       return;
     }
 
-    const settingsOk = await loadSettings();
-    if (!settingsOk) return;
+    localMode = true;
 
-    $("shiftDate").value = localDate(new Date());
-    updateNotificationStatus();
+    const savedSettings = await readCache("settings");
 
-    // Se l'utente aveva già autorizzato le notifiche,
-    // registra o aggiorna automaticamente il dispositivo.
-    if (
-      "Notification" in window &&
-      Notification.permission === "granted" &&
-      "serviceWorker" in navigator &&
-      "PushManager" in window
-    ) {
-      try {
-        await registerPushNotifications();
-
-        $("notificationStatus").textContent =
-          "Notifiche push attive e dispositivo registrato.";
-      } catch (error) {
-        console.error(
-          "Aggiornamento registrazione push non riuscito:",
-          error
-        );
-      }
+    if (savedSettings) {
+      settings = savedSettings;
+      populateOptions();
+      updateAccountLabels();
     }
 
-    await loadData();
-    await loadShifts();
+    await loadDataFromCache();
+
+    const week = getWeekRange();
+    currentData.shifts =
+      await readCache("shifts_" + week.start) || [];
+
+    renderWeekLabel();
+    renderShifts();
+    renderHome();
+
+    status("Modalità offline · dati salvati su questo dispositivo");
+
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
 
     if (channel) {
       await db.removeChannel(channel);
+      channel = null;
+    }
+  }
+
+  function startRealtime() {
+    if (!navigator.onLine || localMode) return;
+
+    if (channel) {
+      db.removeChannel(channel);
+      channel = null;
     }
 
     channel = db.channel("casa-romito-pindemonte")
@@ -1644,33 +2347,132 @@ footer {
       )
 
       .subscribe();
+  }
+
+  // --------------------------------------------------
+  // RITORNO DELLA CONNESSIONE
+  // --------------------------------------------------
+
+  window.addEventListener("offline",() => {
+    if (!user) return;
+
+    localMode = true;
+
+    if (channel) {
+      db.removeChannel(channel);
+      channel = null;
+    }
 
     if (refreshTimer) {
       clearInterval(refreshTimer);
+      refreshTimer = null;
     }
 
-    refreshTimer = setInterval(async () => {
-      await loadSettings();
-      await loadData();
-      await loadShifts();
-    },15000);
-  }
+    status("Modalità offline · le modifiche saranno sincronizzate al ritorno di Internet");
+  });
 
-  db.auth.getSession().then(async ({data,error}) => {
-    if (error) {
-      $("loginError").textContent = error.message;
+  window.addEventListener("online",async () => {
+    if (!user) return;
+
+    status("Connessione ripristinata · sincronizzazione in corso…");
+
+    localMode = false;
+
+    const {data:member,error} = await db
+      .from("household_members")
+      .select("household_id")
+      .eq("user_id",user.id)
+      .maybeSingle();
+
+    if (
+      error ||
+      !member ||
+      member.household_id !== HOUSEHOLD_ID
+    ) {
+      localMode = true;
+      status("Non è stato possibile verificare la connessione. I dati locali sono conservati.");
       return;
     }
 
-    if (data.session) {
+    await saveVerifiedAccess();
+    await syncQueue();
+    await loadSettings();
+    await loadData();
+    await loadShifts();
+
+    startRealtime();
+
+    if (refreshTimer) clearInterval(refreshTimer);
+
+    refreshTimer = setInterval(async () => {
+      if (navigator.onLine && !localMode) {
+        await refreshFromServer();
+      }
+    },30000);
+  });
+
+  // --------------------------------------------------
+  // RECUPERO SESSIONE SALVATA
+  // --------------------------------------------------
+
+  function getStoredUserFallback() {
+    try {
+      const raw = localStorage.getItem(
+        "sb-kxzxjusmnpsnsxyuyydi-auth-token"
+      );
+
+      if (!raw) return null;
+
+      const parsed = JSON.parse(raw);
+
+      return (
+        parsed.user ||
+        parsed.currentSession?.user ||
+        null
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  db.auth.getSession().then(async ({data,error}) => {
+    if (data && data.session && data.session.user) {
       user = data.session.user;
       await startApp();
+      return;
+    }
+
+    if (!navigator.onLine) {
+      const storedUser = getStoredUserFallback();
+
+      if (storedUser) {
+        user = storedUser;
+        await startApp();
+        return;
+      }
+    }
+
+    if (error) {
+      $("loginError").textContent =
+        "Per accedere serve una connessione Internet oppure una sessione già salvata su questo dispositivo.";
+    }
+  }).catch(async error => {
+    console.error("Recupero sessione:",error);
+
+    if (!navigator.onLine) {
+      const storedUser = getStoredUserFallback();
+
+      if (storedUser) {
+        user = storedUser;
+        await startApp();
+      }
     }
   });
 
   db.auth.onAuthStateChange(event => {
     if (event === "SIGNED_OUT") {
       user = null;
+      localMode = false;
       showLogin();
     }
   });
