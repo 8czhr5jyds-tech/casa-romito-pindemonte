@@ -1,5 +1,5 @@
 
-const CACHE_NAME = "casa-romito-offline-v2";
+const CACHE_NAME = "casa-romito-offline-v3";
 
 const APP_FILES = [
   "./",
@@ -11,7 +11,7 @@ const APP_FILES = [
 const SUPABASE_SDK =
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0";
 
-// INSTALLAZIONE E MEMORIZZAZIONE DELL'APP
+// INSTALLAZIONE: PRECARICA I FILE AGGIORNATI
 self.addEventListener("install", event => {
   event.waitUntil(
     (async () => {
@@ -21,7 +21,8 @@ self.addEventListener("install", event => {
 
       try {
         const response = await fetch(SUPABASE_SDK, {
-          mode: "cors"
+          mode: "cors",
+          cache: "no-cache"
         });
 
         if (response.ok) {
@@ -36,7 +37,7 @@ self.addEventListener("install", event => {
   );
 });
 
-// ATTIVAZIONE E PULIZIA DELLE VECCHIE CACHE
+// ATTIVAZIONE: ELIMINA LE VECCHIE CACHE
 self.addEventListener("activate", event => {
   event.waitUntil(
     (async () => {
@@ -44,7 +45,11 @@ self.addEventListener("activate", event => {
 
       await Promise.all(
         keys
-          .filter(key => key.startsWith("casa-romito-") && key !== CACHE_NAME)
+          .filter(
+            key =>
+              key.startsWith("casa-romito-") &&
+              key !== CACHE_NAME
+          )
           .map(key => caches.delete(key))
       );
 
@@ -61,7 +66,7 @@ self.addEventListener("fetch", event => {
 
   const url = new URL(request.url);
 
-  // NON MEMORIZZARE LE RICHIESTE PRIVATE DI SUPABASE
+  // NON INTERCETTARE LE RICHIESTE PRIVATE DI SUPABASE
   if (
     url.hostname.includes("supabase.co") ||
     url.pathname.includes("/rest/v1/") ||
@@ -71,7 +76,7 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // SDK SUPABASE: CACHE PRIMA, RETE DOPO
+  // SDK SUPABASE: CACHE PRIMA, RETE COME RISERVA
   if (request.url === SUPABASE_SDK) {
     event.respondWith(
       (async () => {
@@ -86,18 +91,33 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // NAVIGAZIONE: USA INDEX.HTML SE SEI OFFLINE
+  // NAVIGAZIONE: RETE PRIMA, CACHE SOLO SE OFFLINE
   if (request.mode === "navigate") {
     event.respondWith(
       (async () => {
         try {
-          return await fetch(request);
+          const response = await fetch(request, {
+            cache: "no-cache"
+          });
+
+          if (response.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put("./index.html", response.clone());
+          }
+
+          return response;
         } catch (error) {
           const cache = await caches.open(CACHE_NAME);
 
           return (
             await cache.match("./index.html") ||
-            await cache.match("./")
+            await cache.match("./") ||
+            new Response("App non disponibile offline", {
+              status: 503,
+              headers: {
+                "Content-Type": "text/plain; charset=utf-8"
+              }
+            })
           );
         }
       })()
@@ -105,17 +125,16 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // FILE STATICI: CACHE PRIMA, RETE DOPO
+  // FILE LOCALI: RETE PRIMA, CACHE COME RISERVA
   if (url.origin === self.location.origin) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(request);
-
-        if (cached) return cached;
 
         try {
-          const response = await fetch(request);
+          const response = await fetch(request, {
+            cache: "no-cache"
+          });
 
           if (response.ok) {
             await cache.put(request, response.clone());
@@ -123,12 +142,17 @@ self.addEventListener("fetch", event => {
 
           return response;
         } catch (error) {
-          return new Response("Contenuto non disponibile offline", {
-            status: 503,
-            headers: {
-              "Content-Type": "text/plain; charset=utf-8"
-            }
-          });
+          const cached = await cache.match(request);
+
+          return (
+            cached ||
+            new Response("Contenuto non disponibile offline", {
+              status: 503,
+              headers: {
+                "Content-Type": "text/plain; charset=utf-8"
+              }
+            })
+          );
         }
       })()
     );
