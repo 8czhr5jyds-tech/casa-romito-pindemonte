@@ -13,54 +13,44 @@ const SUPABASE_SDK =
 
 // INSTALLAZIONE E MEMORIZZAZIONE DELL'APP
 self.addEventListener("install", event => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
 
-    // Salva separatamente i file disponibili.
-    for (const file of APP_FILES) {
+      await cache.addAll(APP_FILES);
+
       try {
-        const url = new URL(file, self.registration.scope);
-        const response = await fetch(url, { cache: "reload" });
+        const response = await fetch(SUPABASE_SDK, {
+          mode: "cors"
+        });
 
         if (response.ok) {
-          await cache.put(url.href, response);
+          await cache.put(SUPABASE_SDK, response);
         }
       } catch (error) {
-        console.log("File non memorizzato:", file, error);
+        console.log("SDK non disponibile durante l'installazione");
       }
-    }
 
-    // Memorizza la libreria Supabase.
-    try {
-      const response = await fetch(SUPABASE_SDK);
-
-      if (response.ok || response.type === "opaque") {
-        await cache.put(SUPABASE_SDK, response);
-      }
-    } catch (error) {
-      console.log("Supabase SDK non memorizzato:", error);
-    }
-
-    await self.skipWaiting();
-  })());
+      await self.skipWaiting();
+    })()
+  );
 });
 
 // ATTIVAZIONE E PULIZIA DELLE VECCHIE CACHE
 self.addEventListener("activate", event => {
-  event.waitUntil((async () => {
-    const names = await caches.keys();
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
 
-    await Promise.all(
-      names
-        .filter(name =>
-          name.startsWith("casa-romito-") &&
-          name !== CACHE_NAME
-        )
-        .map(name => caches.delete(name))
-    );
+      await Promise.all(
+        keys
+          .filter(key => key.startsWith("casa-romito-") && key !== CACHE_NAME)
+          .map(key => caches.delete(key))
+      );
 
-    await self.clients.claim();
-  })());
+      await self.clients.claim();
+    })()
+  );
 });
 
 // GESTIONE DELLE RICHIESTE
@@ -71,180 +61,76 @@ self.addEventListener("fetch", event => {
 
   const url = new URL(request.url);
 
-  // LIBRERIA SUPABASE
+  // NON MEMORIZZARE LE RICHIESTE PRIVATE DI SUPABASE
   if (
-    url.origin === "https://cdn.jsdelivr.net" &&
-    url.pathname === "/npm/@supabase/supabase-js@2.118.0"
+    url.hostname.includes("supabase.co") ||
+    url.pathname.includes("/rest/v1/") ||
+    url.pathname.includes("/auth/v1/") ||
+    url.pathname.includes("/storage/v1/")
   ) {
-    event.respondWith((async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const cached = await cache.match(SUPABASE_SDK);
-
-      if (cached) return cached;
-
-      try {
-        const response = await fetch(request);
-
-        if (response.ok || response.type === "opaque") {
-          await cache.put(SUPABASE_SDK, response.clone());
-        }
-
-        return response;
-      } catch (error) {
-        return new Response(
-          "Libreria Supabase non disponibile offline.",
-          { status: 503 }
-        );
-      }
-    })());
-
     return;
   }
 
-  // NON MEMORIZZARE API, AUTENTICAZIONE O DATI PRIVATI
-  if (url.origin !== self.location.origin) return;
+  // SDK SUPABASE: CACHE PRIMA, RETE DOPO
+  if (request.url === SUPABASE_SDK) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match(SUPABASE_SDK);
 
-  // NAVIGAZIONE: RETE PRIMA, CACHE IN CASO DI OFFLINE
+        if (cached) return cached;
+
+        return fetch(request);
+      })()
+    );
+    return;
+  }
+
+  // NAVIGAZIONE: USA INDEX.HTML SE SEI OFFLINE
   if (request.mode === "navigate") {
-    event.respondWith((async () => {
-      const cache = await caches.open(CACHE_NAME);
+    event.respondWith(
+      (async () => {
+        try {
+          return await fetch(request);
+        } catch (error) {
+          const cache = await caches.open(CACHE_NAME);
 
-      try {
-        const response = await fetch(request);
-
-        if (response.ok) {
-          await cache.put(
-            new URL("./index.html", self.registration.scope).href,
-            response.clone()
+          return (
+            await cache.match("./index.html") ||
+            await cache.match("./")
           );
         }
-
-        return response;
-      } catch (error) {
-        return (
-          await cache.match(request) ||
-          await cache.match(
-            new URL("./index.html", self.registration.scope).href
-          ) ||
-          await cache.match(
-            new URL("./", self.registration.scope).href
-          ) ||
-          new Response("App non disponibile offline.", {
-            status: 503
-          })
-        );
-      }
-    })());
-
+      })()
+    );
     return;
   }
 
-  // RISORSE LOCALI: CACHE PRIMA, RETE COME AGGIORNAMENTO
-  event.respondWith((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    const cached = await cache.match(request);
+  // FILE STATICI: CACHE PRIMA, RETE DOPO
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match(request);
 
-    if (cached) {
-      event.waitUntil(
-        fetch(request)
-          .then(response => {
-            if (response.ok) {
-              return cache.put(request, response);
-            }
-          })
-          .catch(() => {})
-      );
+        if (cached) return cached;
 
-      return cached;
-    }
+        try {
+          const response = await fetch(request);
 
-    try {
-      const response = await fetch(request);
-
-      if (response.ok) {
-        await cache.put(request, response.clone());
-      }
-
-      return response;
-    } catch (error) {
-      return new Response(
-        "Risorsa non disponibile offline.",
-        {
-          status: 503,
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8"
+          if (response.ok) {
+            await cache.put(request, response.clone());
           }
+
+          return response;
+        } catch (error) {
+          return new Response("Contenuto non disponibile offline", {
+            status: 503,
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8"
+            }
+          });
         }
-      );
-    }
-  })());
-});
-
-// NOTIFICHE PUSH
-self.addEventListener("push", event => {
-  let data = {};
-
-  try {
-    data = event.data ? event.data.json() : {};
-  } catch {
-    data = {
-      body: event.data ? event.data.text() : ""
-    };
+      })()
+    );
   }
-
-  const title =
-    data.title || "Casa Romito/Pindemonte";
-
-  const options = {
-    body: data.body || "È stato aggiunto un nuovo elemento.",
-
-    icon: new URL(
-      "./icon.svg",
-      self.registration.scope
-    ).href,
-
-    badge: new URL(
-      "./icon.svg",
-      self.registration.scope
-    ).href,
-
-    tag: data.tag || "casa-notification",
-
-    data: {
-      url: data.url || "./"
-    }
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
-});
-
-// APERTURA DELL'APP TOCCANDO UNA NOTIFICA
-self.addEventListener("notificationclick", event => {
-  event.notification.close();
-
-  const targetUrl = new URL(
-    event.notification.data?.url || "./",
-    self.registration.scope
-  ).href;
-
-  event.waitUntil((async () => {
-    const windows = await self.clients.matchAll({
-      type: "window",
-      includeUncontrolled: true
-    });
-
-    for (const client of windows) {
-      if (
-        client.url.startsWith(self.registration.scope) &&
-        "focus" in client
-      ) {
-        await client.focus();
-        return;
-      }
-    }
-
-    await self.clients.openWindow(targetUrl);
-  })());
 });
