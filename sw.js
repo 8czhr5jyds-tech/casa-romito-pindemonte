@@ -1,4 +1,4 @@
-const CACHE_NAME = "casa-romito-offline-v4";
+const CACHE_NAME = "casa-romito-offline-v5";
 const APP_FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 const SUPABASE_SDK = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0";
 
