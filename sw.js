@@ -1,4 +1,4 @@
-const CACHE_NAME = "casa-romito-offline-v5";
+const CACHE_NAME = "casa-romito-offline-v6";
 const APP_FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 const SUPABASE_SDK = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0";
 
@@ -26,6 +26,44 @@ self.addEventListener("activate", event => {
   })());
 });
 
+// Mostra le notifiche push inviate da Supabase all'altro membro della famiglia.
+self.addEventListener("push", event => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (_) {
+    payload = { body: event.data ? event.data.text() : "È stata aggiornata l'app di casa." };
+  }
+
+  const title = payload.title || "Casa Romito/Pindemonte";
+  const options = {
+    body: payload.body || "L'altro membro della famiglia ha modificato un elemento.",
+    icon: "./icon.svg",
+    badge: "./icon.svg",
+    tag: payload.tag || "casa-romito-update",
+    renotify: true,
+    data: { url: payload.url || "./" }
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || "./", self.location.origin).href;
+
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      if ("focus" in client) {
+        if ("navigate" in client) await client.navigate(target);
+        return client.focus();
+      }
+    }
+    if (self.clients.openWindow) return self.clients.openWindow(target);
+  })());
+});
+
 self.addEventListener("fetch", event => {
   const request = event.request;
   const url = new URL(request.url);
@@ -42,7 +80,7 @@ self.addEventListener("fetch", event => {
         const fresh = await fetch(request);
         if (fresh.ok) await cache.put(request, fresh.clone());
         return fresh;
-      } catch (error) {
+      } catch (_) {
         return new Response("SDK non disponibile offline", { status: 503 });
       }
     })());
@@ -56,7 +94,7 @@ self.addEventListener("fetch", event => {
         const fresh = await fetch(request, { cache: "no-cache" });
         if (fresh.ok) await cache.put("./index.html", fresh.clone());
         return fresh;
-      } catch (error) {
+      } catch (_) {
         return (await cache.match("./index.html")) || (await cache.match("./")) || Response.error();
       }
     })());
@@ -70,7 +108,7 @@ self.addEventListener("fetch", event => {
         const fresh = await fetch(request, { cache: "no-cache" });
         if (fresh.ok) await cache.put(request, fresh.clone());
         return fresh;
-      } catch (error) {
+      } catch (_) {
         return (await cache.match(request)) || Response.error();
       }
     })());
