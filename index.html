@@ -360,6 +360,43 @@ footer {
   .shift-symbol {font-size:15px}
 }
 
+ 
+/* Compiti di casa: doppia scheda personale */
+.tasks-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 3px 16px}
+.tasks-intro h2{font-size:23px;margin:3px 0 6px}
+.tasks-intro .muted{margin:0;line-height:1.45}
+.tasks-eyebrow{font-size:10px;letter-spacing:1.25px;font-weight:800;color:#89969b;margin:0}
+.tasks-home-icon{width:52px;height:52px;flex:0 0 52px;border-radius:18px;background:#eef5ff;display:grid;place-items:center;font-size:27px}
+.tasks-add-panel{background:#fff;border:1px solid #e7edf1;border-radius:20px;padding:16px;margin-bottom:15px;box-shadow:0 5px 18px rgba(28,58,85,.045)}
+.tasks-add-panel h3{margin:0 0 12px}
+.tasks-urgent-label{display:flex;align-items:center;gap:8px;margin:2px 0 12px}
+.tasks-submit{margin-top:4px;background:linear-gradient(100deg,#e95b9b,#d94789);box-shadow:0 5px 12px rgba(217,71,137,.18)}
+.tasks-people-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start}
+.task-person-card{min-width:0;padding:10px 9px;border:1px solid;border-radius:20px;box-shadow:0 5px 18px rgba(28,58,85,.045)}
+.task-person-card.linda{background:linear-gradient(155deg,#fff0f6 0%,#fff 48%);border-color:#f2cbdc}
+.task-person-card.francesco{background:linear-gradient(155deg,#edf6ff 0%,#fff 48%);border-color:#cfe2f5}
+.task-person-heading{display:flex;align-items:center;gap:6px;margin-bottom:10px;min-width:0}
+.task-avatar{width:36px;height:36px;flex:0 0 36px;border-radius:50%;display:grid;place-items:center;background:#fff;font-size:20px;box-shadow:0 2px 7px rgba(30,50,70,.07)}
+.task-person-name-wrap{min-width:0;flex:1}
+.task-person-name-wrap h3{font-size:clamp(13px,3.6vw,17px);margin:0;overflow-wrap:anywhere}
+.task-person-caption{font-size:10px;color:#879398}
+.task-count{min-width:23px;height:23px;padding:0 6px;border-radius:99px;background:#fff;display:grid;place-items:center;font-size:11px;font-weight:800}
+.linda .task-count{color:#bd4c80}
+.francesco .task-count{color:#347fb7}
+.task-person-list{min-width:0}
+.task-person-list .item{align-items:flex-start;gap:6px;padding:9px 5px;margin:6px 0;border:0;border-radius:12px;background:rgba(255,255,255,.88);box-shadow:0 1px 6px rgba(30,55,80,.045)}
+.task-person-list .item input[type=checkbox]{width:17px;height:17px;flex:0 0 17px;margin-top:2px}
+.task-person-list .details{min-width:0}
+.task-person-list .details strong{font-size:12px;line-height:1.35}
+.task-person-list .tag{font-size:9px;padding:3px 6px;margin:4px 3px 0 0}
+.task-person-list .meta,.task-person-list .task-reminder-meta{font-size:10px;line-height:1.35;overflow-wrap:anywhere}
+.task-person-list .danger.small{padding:4px 6px;font-size:11px}
+.task-person-list .attachment-link{font-size:10px;padding:5px 6px}
+.task-person-empty{padding:12px 4px;text-align:center;color:#8a969b;font-size:11px;line-height:1.45}
+.task-person-empty span{display:block;font-size:22px;margin-bottom:4px}
+@media(max-width:350px){.tasks-people-grid{gap:7px}.task-person-card{padding:8px 6px}.task-person-heading{gap:4px}.task-avatar{width:30px;height:30px;flex-basis:30px;font-size:17px}.task-person-name-wrap h3{font-size:12px}}
+@media(min-width:680px){.tasks-people-grid{gap:14px}.task-person-card{padding:15px}.task-person-list .item{padding:11px 9px}.task-person-list .details strong{font-size:14px}}
+
 </style>
 </head>
 
@@ -531,16 +568,24 @@ footer {
     </div>
   </section>
 
-  <!-- COMPITI -->
+  <!-- COMPITI CASA: schede separate per Linda e Francesco -->
   <section id="tasks" class="section">
-    <div class="panel">
-      <h2>🧹 Compiti Casa</h2>
+    <div class="tasks-intro">
+      <div>
+        <p class="tasks-eyebrow">ORGANIZZAZIONE DI CASA</p>
+        <h2>🧹 Compiti di casa</h2>
+        <p class="muted">Ognuno ha la sua lista. Insieme, teniamo tutto in ordine.</p>
+      </div>
+      <div class="tasks-home-icon">🏡</div>
+    </div>
 
+    <div class="tasks-add-panel">
+      <h3>＋ Aggiungi un nuovo compito</h3>
       <form id="taskForm">
         <input id="taskTitle" placeholder="Cosa c'è da fare?" required>
+        <label class="form-label" for="taskAssigned">A chi è assegnato?</label>
         <select id="taskAssigned"></select>
-
-        <label class="muted">
+        <label class="muted tasks-urgent-label">
           <input id="taskUrgent" type="checkbox">
           Segna come urgente
         </label>
@@ -562,20 +607,35 @@ footer {
           <option value="60">60 minuti prima</option>
         </select>
         <p class="muted task-reminder-help">Lascia data e ora vuote se non vuoi impostare un promemoria.</p>
-
-        <label class="form-label" for="taskFiles">
-          Allega foto o documenti (facoltativo)
-        </label>
-        <input id="taskFiles" type="file" multiple
-          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
-
-        <button class="full" type="submit">＋ Aggiungi compito</button>
+        <label class="form-label" for="taskFiles">Allega foto o documenti (facoltativo)</label>
+        <input id="taskFiles" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+        <button class="full tasks-submit" type="submit">＋ Aggiungi compito</button>
       </form>
     </div>
 
-    <div class="card">
-      <h3>Da fare</h3>
-      <div id="tasksList"></div>
+    <div class="tasks-people-grid">
+      <article class="task-person-card linda">
+        <div class="task-person-heading">
+          <div class="task-avatar" aria-hidden="true">🌸</div>
+          <div class="task-person-name-wrap">
+            <h3 id="lindaTasksTitle">Linda</h3>
+            <span class="task-person-caption">La tua lista</span>
+          </div>
+          <span class="task-count" id="lindaTaskCount">0</span>
+        </div>
+        <div class="task-person-list" id="lindaTasksList"></div>
+      </article>
+      <article class="task-person-card francesco">
+        <div class="task-person-heading">
+          <div class="task-avatar" aria-hidden="true">💙</div>
+          <div class="task-person-name-wrap">
+            <h3 id="francescoTasksTitle">Francesco</h3>
+            <span class="task-person-caption">La tua lista</span>
+          </div>
+          <span class="task-count" id="francescoTaskCount">0</span>
+        </div>
+        <div class="task-person-list" id="francescoTasksList"></div>
+      </article>
     </div>
   </section>
 
@@ -1322,44 +1382,55 @@ footer {
     $("homeShifts").textContent = currentData.shifts.length;
   }
 
-  // COMPITI CASA
+  // COMPITI CASA: distribuzione nelle due schede personali
   function renderTasks(items,attachments = {}) {
-    const list = $("tasksList");
+    const lindaList = $("lindaTasksList");
+    const francescoList = $("francescoTasksList");
+    const lindaName = settings.linda_name;
+    const francescoName = settings.francesco_name;
+    $("lindaTasksTitle").textContent = lindaName;
+    $("francescoTasksTitle").textContent = francescoName;
 
-    if (!items.length) {
-      list.innerHTML = '<p class="muted">Non ci sono ancora compiti.</p>';
-      return;
-    }
+    const assignedTo = (item,name) => {
+      const value = assignedName(item.assigned_to);
+      return value === "Entrambi" || value === name;
+    };
 
-    list.innerHTML = items.map(item => {
-      const reminderMeta = item.reminder_at
-        ? `<div class="task-reminder-meta">⏰ ${safe(new Date(item.reminder_at).toLocaleString("it-IT",{dateStyle:"short",timeStyle:"short"}))} · ${Number(item.reminder_offset_minutes || 0) === 0 ? "avviso all'orario stabilito" : `avviso ${Number(item.reminder_offset_minutes)} minuti prima`}</div>`
-        : "";
-
-      return `
-        <div class="item ${item.completed ? "done" : ""}
-          ${item.urgent && !item.completed ? "urgent" : ""}">
-
-          <input type="checkbox"
-            ${item.completed ? "checked" : ""}
-            aria-label="Completa compito"
-            onchange="window.homeApp.toggle(
-              'tasks','${safe(item.id)}','completed',this.checked
-            )">
-
-          <div class="details">
-            <strong>${safe(item.title)}</strong>
-            <span class="tag">${safe(assignedName(item.assigned_to))}</span>
-            ${item.urgent ? '<span class="tag urgent-tag">URGENTE</span>' : ""}
-            ${reminderMeta}
-            ${renderAttachments(attachments[item.id])}
+    const renderPersonTasks = (personItems) => {
+      const pending = personItems.filter(item => !item.completed);
+      const completed = personItems.filter(item => item.completed);
+      const ordered = [...pending,...completed];
+      if (!ordered.length) {
+        return '<div class="task-person-empty"><span>✨</span>Nessun compito assegnato.<br>Goditi un momento di tranquillità!</div>';
+      }
+      return ordered.map(item => {
+        const reminderMeta = item.reminder_at
+          ? `<div class="task-reminder-meta">⏰ ${safe(new Date(item.reminder_at).toLocaleString("it-IT",{dateStyle:"short",timeStyle:"short"}))} · ${Number(item.reminder_offset_minutes || 0) === 0 ? "avviso all'orario stabilito" : `avviso ${Number(item.reminder_offset_minutes)} minuti prima`}</div>`
+          : "";
+        return `
+          <div class="item ${item.completed ? "done" : ""} ${item.urgent && !item.completed ? "urgent" : ""}">
+            <input type="checkbox" ${item.completed ? "checked" : ""}
+              aria-label="Completa compito"
+              onchange="window.homeApp.toggle('tasks','${safe(item.id)}','completed',this.checked)">
+            <div class="details">
+              <strong>${safe(item.title)}</strong>
+              ${item.urgent && !item.completed ? '<span class="tag urgent-tag">URGENTE</span>' : ""}
+              ${reminderMeta}
+              ${renderAttachments(attachments[item.id])}
+            </div>
+            <button class="danger small" aria-label="Elimina compito"
+              onclick="window.homeApp.remove('tasks','${safe(item.id)}','task')">✕</button>
           </div>
+        `;
+      }).join("");
+    };
 
-          <button class="danger small"
-            onclick="window.homeApp.remove('tasks','${safe(item.id)}','task')">✕</button>
-        </div>
-      `;
-    }).join("");
+    const lindaItems = items.filter(item => assignedTo(item,lindaName));
+    const francescoItems = items.filter(item => assignedTo(item,francescoName));
+    $("lindaTaskCount").textContent = lindaItems.filter(item => !item.completed).length;
+    $("francescoTaskCount").textContent = francescoItems.filter(item => !item.completed).length;
+    lindaList.innerHTML = renderPersonTasks(lindaItems);
+    francescoList.innerHTML = renderPersonTasks(francescoItems);
   }
 
   $("taskForm").addEventListener("submit",async event => {
