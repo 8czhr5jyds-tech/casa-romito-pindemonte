@@ -1342,7 +1342,7 @@ footer {
         if (!group.length) return "";
         return `<div class="child-category-title">${safe(childTypeLabels[type])}</div>` + group.map(item => `
           <div class="child-entry ${item.completed ? "done" : ""}">
-            <div class="details"><button type="button" onclick="window.homeApp.editChildEntry('${safe(item.id)}')">${safe(item.title)}</button>${item.details ? `<div class="meta">${safe(item.details)}</div>` : ""}</div>
+            <div class="details"><button type="button" onclick="window.homeApp.editChildEntry('${safe(item.id)}')">${safe(item.title)}</button>${item.urgent && type === "expense" ? '<span class="tag urgent-tag">URGENTE</span>' : ""}${item.details ? `<div class="meta">${safe(item.details)}</div>` : ""}</div>
             <div class="entry-actions"><button class="secondary small" aria-label="Modifica" onclick="window.homeApp.editChildEntry('${safe(item.id)}')">✎</button><button class="danger small" aria-label="Elimina" onclick="window.homeApp.removeChildEntry('${safe(item.id)}')">✕</button></div>
           </div>`).join("");
       }).join("") || '<p class="muted">Ancora nessuna voce. Tocca una categoria per aggiungerla.</p>';
@@ -1360,7 +1360,9 @@ footer {
       const details = null;
       const {error} = await db.from("child_entries").insert({
         household_id:HOUSEHOLD_ID, child_name:child, entry_type:type,
-        title:title.trim(), details, completed:false, created_by:user.id
+        title:title.trim(), details, completed:false,
+        urgent:type === "expense" ? confirm("Vuoi segnare questa spesa come urgente?") : false,
+        created_by:user.id
       });
       if (error) { alert("Errore nel salvataggio: " + error.message); return; }
       await loadChildEntries();
