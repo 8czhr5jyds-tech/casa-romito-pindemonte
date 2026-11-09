@@ -1,4 +1,4 @@
-const CACHE_NAME = "casa-romito-offline-v6";
+const CACHE_NAME = "casa-romito-offline-v7";
 const APP_FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 const SUPABASE_SDK = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0";
 
@@ -91,7 +91,7 @@ self.addEventListener("fetch", event => {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
       try {
-        const fresh = await fetch(request, { cache: "no-cache" });
+        const fresh = await fetch(request, { cache: "reload" });
         if (fresh.ok) await cache.put("./index.html", fresh.clone());
         return fresh;
       } catch (_) {
