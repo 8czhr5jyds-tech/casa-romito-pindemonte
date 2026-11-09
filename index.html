@@ -552,8 +552,6 @@ footer {
         </div>
         <div class="child-options" data-child-options="Gabriele">
           <button type="button" data-child-type="task">📚 Compiti</button>
-          <button type="button" data-child-type="lunch">🍝 Pranzo</button>
-          <button type="button" data-child-type="dinner">🍽️ Cena</button>
           <button type="button" data-child-type="expense">💶 Spese</button>
           <button type="button" data-child-type="note">📌 Note</button>
         </div>
@@ -566,8 +564,6 @@ footer {
         </div>
         <div class="child-options" data-child-options="Rebecca">
           <button type="button" data-child-type="task">📚 Compiti</button>
-          <button type="button" data-child-type="lunch">🍝 Pranzo</button>
-          <button type="button" data-child-type="dinner">🍽️ Cena</button>
           <button type="button" data-child-type="expense">💶 Spese</button>
           <button type="button" data-child-type="note">📌 Note</button>
         </div>
@@ -1335,7 +1331,7 @@ footer {
     ["Gabriele","Rebecca"].forEach(child => {
       const target = child === "Gabriele" ? "gabrieleEntries" : "rebeccaEntries";
       const items = currentData.childEntries.filter(item => item.child_name === child);
-      const types = ["task","lunch","dinner","expense","note"];
+      const types = ["task","expense","note"];
       $(target).innerHTML = types.map(type => {
         const group = items.filter(item => item.entry_type === type);
         if (!group.length) return "";
