@@ -661,6 +661,7 @@ footer {
 
       <form id="shoppingForm" class="row">
         <input id="shoppingTitle" placeholder="Aggiungi un prodotto…" required>
+        <label class="muted tasks-urgent-label"><input id="shoppingUrgent" type="checkbox"> Urgente</label>
         <button type="submit">＋</button>
       </form>
     </div>
@@ -705,11 +706,6 @@ footer {
 
         <label class="form-label" for="expenseDate">Scadenza (facoltativa)</label>
         <input id="expenseDate" type="date">
-
-        <label class="muted tasks-urgent-label">
-          <input id="expenseUrgent" type="checkbox">
-          Segna come urgente
-        </label>
 
         <label class="form-label" for="expenseFiles">
           Allega foto, PDF o documenti (facoltativo)
@@ -1537,7 +1533,7 @@ footer {
     }
 
     list.innerHTML = items.map(item => `
-      <div class="item ${item.completed ? "done" : ""}">
+      <div class="item ${item.completed ? "done" : ""} ${item.urgent && !item.completed ? "urgent" : ""}">
         <input type="checkbox"
           ${item.completed ? "checked" : ""}
           aria-label="Prodotto acquistato"
@@ -1547,8 +1543,11 @@ footer {
 
         <div class="details">
           <strong>${safe(item.title)}</strong>
+          ${item.urgent && !item.completed ? '<span class="tag urgent-tag">URGENTE</span>' : ""}
         </div>
 
+        <button class="secondary small" aria-label="Cambia urgenza"
+          onclick="window.homeApp.toggle('shopping','${safe(item.id)}','urgent',${!item.urgent})">${item.urgent ? "⚑" : "⚐"}</button>
         <button class="danger small"
           onclick="window.homeApp.remove('shopping','${safe(item.id)}')">✕</button>
       </div>
@@ -1564,6 +1563,7 @@ footer {
     const {error} = await db.from("shopping").insert({
       title,
       completed:false,
+      urgent:$("shoppingUrgent").checked,
       household_id:HOUSEHOLD_ID
     });
 
@@ -1600,7 +1600,7 @@ footer {
       }
 
       return listItems.map(item => `
-        <div class="item ${isPaid ? "done" : ""} ${item.urgent && !isPaid ? "urgent" : ""}">
+        <div class="item ${isPaid ? "done" : ""}">
           <input type="checkbox"
             ${item.paid ? "checked" : ""}
             aria-label="Segna come pagata"
@@ -1610,7 +1610,6 @@ footer {
 
           <div class="details">
             <strong>${safe(item.title)}</strong>
-            ${item.urgent && !isPaid ? '<span class="tag urgent-tag">URGENTE</span>' : ""}
             <div class="meta">${safe(money(item.amount))}</div>
 
             ${item.due_date
@@ -1661,7 +1660,6 @@ footer {
         title,
         amount,
         due_date:dueDate,
-        urgent:$("expenseUrgent").checked,
         paid:false
       })
       .select()
