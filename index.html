@@ -706,6 +706,11 @@ footer {
         <label class="form-label" for="expenseDate">Scadenza (facoltativa)</label>
         <input id="expenseDate" type="date">
 
+        <label class="muted tasks-urgent-label">
+          <input id="expenseUrgent" type="checkbox">
+          Segna come urgente
+        </label>
+
         <label class="form-label" for="expenseFiles">
           Allega foto, PDF o documenti (facoltativo)
         </label>
@@ -1593,7 +1598,7 @@ footer {
       }
 
       return listItems.map(item => `
-        <div class="item ${isPaid ? "done" : ""}">
+        <div class="item ${isPaid ? "done" : ""} ${item.urgent && !isPaid ? "urgent" : ""}">
           <input type="checkbox"
             ${item.paid ? "checked" : ""}
             aria-label="Segna come pagata"
@@ -1603,6 +1608,7 @@ footer {
 
           <div class="details">
             <strong>${safe(item.title)}</strong>
+            ${item.urgent && !isPaid ? '<span class="tag urgent-tag">URGENTE</span>' : ""}
             <div class="meta">${safe(money(item.amount))}</div>
 
             ${item.due_date
@@ -1653,6 +1659,7 @@ footer {
         title,
         amount,
         due_date:dueDate,
+        urgent:$("expenseUrgent").checked,
         paid:false
       })
       .select()
